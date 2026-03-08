@@ -1,24 +1,36 @@
 -- Universal Combat Script
-print("[Universal] Iniciando...")
+local success, err = pcall(function()
+    print("[Universal] Iniciando...")
+end)
 
-local player = game.Players.LocalPlayer
+if not success then
+    warn("[Universal] Erro ao iniciar:", err)
+end
+
+local player = game:GetService("Players").LocalPlayer
 local UIS = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
 repeat task.wait() until player.Character or player.CharacterAdded:Wait()
-task.wait(1)
+task.wait(0.5)
+
+local guiParent = gethui and gethui() or game:GetService("CoreGui")
+if not guiParent then
+    guiParent = player:WaitForChild("PlayerGui")
+end
 
 pcall(function()
-    if game.CoreGui:FindFirstChild("UniversalGui") then
-        game.CoreGui:FindFirstChild("UniversalGui"):Destroy()
-    end
+    local existing = guiParent:FindFirstChild("UniversalGui")
+    if existing then existing:Destroy() end
 end)
 
-task.wait(1)
+task.wait(0.3)
 
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "UniversalGui"
 ScreenGui.ResetOnSpawn = false
+ScreenGui.IgnoreGuiInset = true
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Parent = ScreenGui
@@ -600,6 +612,10 @@ local lastFireTime = 0
 local fireDelay = 0.03
 local isFiring = false
 
+local mouse1press = mouse1press or mouse1click or function() end
+local mouse1release = mouse1release or function() end
+local setfpscap = setfpscap or function() end
+
 RunService.Heartbeat:Connect(function()
     pcall(function()
         local currentTime = tick()
@@ -614,9 +630,13 @@ RunService.Heartbeat:Connect(function()
                 
                 task.spawn(function()
                     pcall(function()
-                        mouse1press()
-                        task.wait(0.02)
-                        mouse1release()
+                        if mouse1press then
+                            mouse1press()
+                            task.wait(0.02)
+                            if mouse1release then
+                                mouse1release()
+                            end
+                        end
                         task.wait(0.01)
                         isFiring = false
                     end)
@@ -729,8 +749,10 @@ perfBtn.MouseButton1Click:Connect(function()
                 end
             end
             
-            settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
-            setfpscap(999)
+            pcall(function()
+                settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+            end)
+            if setfpscap then setfpscap(999) end
         else
             perfIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
             
@@ -756,8 +778,10 @@ perfBtn.MouseButton1Click:Connect(function()
             end
             originalTextures = {}
             
-            settings().Rendering.QualityLevel = Enum.QualityLevel.Automatic
-            setfpscap(60)
+            pcall(function()
+                settings().Rendering.QualityLevel = Enum.QualityLevel.Automatic
+            end)
+            if setfpscap then setfpscap(60) end
         end
     end)
 end)
@@ -896,6 +920,14 @@ UIS.InputEnded:Connect(function(input)
     end
 end)
 
-ScreenGui.Parent = game.CoreGui
+pcall(function()
+    ScreenGui.Parent = guiParent
+end)
 
-print("[Universal] Carregado! Z=Menu J=ESP X=Aimbot C=AutoFire V=Max N=Noclip | Aimbot: Segure BOTAO DIREITO")
+if not ScreenGui.Parent then
+    ScreenGui.Parent = player:WaitForChild("PlayerGui")
+end
+
+pcall(function()
+    print("[Universal] Carregado! Z=Menu J=ESP X=Aimbot C=AutoFire V=Max N=Noclip | Aimbot: Segure BOTAO DIREITO")
+end)
