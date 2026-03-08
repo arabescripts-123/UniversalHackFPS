@@ -183,19 +183,23 @@ end
 local function isBotEnemy(character)
     if not isBot(character) then return false end
     if character == player.Character then return false end
-    if not player.Team then return true end
     
-    local botTeam = character:FindFirstChild("Team")
-    if botTeam and botTeam:IsA("StringValue") then
-        return botTeam.Value ~= player.Team.Name
-    end
-    
-    local bodyColors = character:FindFirstChild("Body Colors")
-    local myBodyColors = player.Character and player.Character:FindFirstChild("Body Colors")
-    if bodyColors and myBodyColors then
-        if bodyColors.HeadColor3 == myBodyColors.HeadColor3 and 
-           bodyColors.TorsoColor3 == myBodyColors.TorsoColor3 then
-            return false
+    -- Verifica pasta Characters no Workspace
+    local charactersFolder = workspace:FindFirstChild("Characters")
+    if charactersFolder then
+        local terroristsFolder = charactersFolder:FindFirstChild("Terrorists")
+        local ctsFolder = charactersFolder:FindFirstChild("Counter-Terrorists")
+        
+        if terroristsFolder and ctsFolder then
+            local isInTerrorists = character:IsDescendantOf(terroristsFolder)
+            local isInCTs = character:IsDescendantOf(ctsFolder)
+            
+            if player.Team then
+                local myTeamName = player.Team.Name
+                if myTeamName:match("Terrorist") and isInTerrorists then return false end
+                if myTeamName:match("Counter") and isInCTs then return false end
+                if isInTerrorists or isInCTs then return true end
+            end
         end
     end
     
@@ -205,9 +209,18 @@ end
 local function isEnemy(otherPlayer)
     if not otherPlayer or otherPlayer == player then return false end
     if not player.Character or not otherPlayer.Character then return false end
+    
+    -- Se não tem time, considera inimigo
     if not player.Team or not otherPlayer.Team then return true end
+    
+    -- FFA sempre inimigo
     if player.Team.Name == "FFA" or otherPlayer.Team.Name == "FFA" then return true end
-    return otherPlayer.Team ~= player.Team
+    
+    -- Verifica se são times diferentes
+    if player.Team ~= otherPlayer.Team then return true end
+    
+    -- Mesmo time = aliado
+    return false
 end
 
 local function addESP(plr)
