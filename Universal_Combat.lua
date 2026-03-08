@@ -617,9 +617,24 @@ UIS.InputChanged:Connect(function(input)
         currentFOV = math.floor(70 + (percentage * 50))
         fovLabel.Text = "FOV: " .. currentFOV
         fovFill.Size = UDim2.new(percentage, 0, 1, 0)
-        
-        workspace.CurrentCamera.FieldOfView = currentFOV
     end
+end)
+
+RunService.RenderStepped:Connect(function()
+    pcall(function()
+        local cam = workspace.CurrentCamera
+        if player.Character then
+            local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                local isFirstPerson = (cam.Focus.Position - cam.CFrame.Position).Magnitude < 1
+                if isFirstPerson then
+                    cam.FieldOfView = currentFOV
+                else
+                    cam.FieldOfView = 70
+                end
+            end
+        end
+    end)
 end)
 
 RunService.Stepped:Connect(function()
