@@ -156,6 +156,28 @@ local perfEnabled = false
 local espEnabled = false
 local espBoxes = {}
 local espConnections = {}
+local botCharacters = {}
+
+local function isBot(character)
+    if not character then return false end
+    local plr = game.Players:GetPlayerFromCharacter(character)
+    if plr then return false end
+    
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    local head = character:FindFirstChild("Head")
+    return humanoid and head and humanoid.Health > 0
+end
+
+local function isBotEnemy(character)
+    if not isBot(character) then return false end
+    if not player.Team then return true end
+    
+    local botTeam = character:FindFirstChild("Team")
+    if botTeam and botTeam:IsA("StringValue") then
+        return botTeam.Value ~= player.Team.Name
+    end
+    return true
+end
 
 local function isEnemy(otherPlayer)
     if not otherPlayer or otherPlayer == player then return false end
@@ -216,6 +238,47 @@ local function addESP(plr)
     end)
 end
 
+local function addBotESP(character)
+    if not espEnabled or not isBotEnemy(character) then return end
+    
+    pcall(function()
+        local head = character:FindFirstChild("Head")
+        if not head then return end
+        
+        local color = Color3.fromRGB(255, 165, 0)
+        
+        local highlight = Instance.new("Highlight")
+        highlight.FillColor = color
+        highlight.OutlineColor = color
+        highlight.FillTransparency = 0.7
+        highlight.OutlineTransparency = 0.2
+        highlight.Adornee = character
+        highlight.Parent = character
+        
+        local billboard = Instance.new("BillboardGui")
+        billboard.Adornee = head
+        billboard.Size = UDim2.new(0, 100, 0, 50)
+        billboard.StudsOffset = Vector3.new(0, 3, 0)
+        billboard.AlwaysOnTop = true
+        billboard.Parent = head
+        
+        local nameLabel = Instance.new("TextLabel")
+        nameLabel.Size = UDim2.new(1, 0, 1, 0)
+        nameLabel.BackgroundTransparency = 1
+        nameLabel.Text = "Bot"
+        nameLabel.TextColor3 = color
+        nameLabel.TextStrokeTransparency = 0.5
+        nameLabel.Font = Enum.Font.GothamBold
+        nameLabel.TextSize = 14
+        nameLabel.Parent = billboard
+        
+        if not espBoxes[character] then espBoxes[character] = {} end
+        table.insert(espBoxes[character], highlight)
+        table.insert(espBoxes[character], billboard)
+        botCharacters[character] = true
+    end)
+end
+
 local function removeESP(plr)
     if espBoxes[plr] then
         for _, v in pairs(espBoxes[plr]) do
@@ -231,8 +294,10 @@ end
 
 local function refreshESP()
     for plr, _ in pairs(espBoxes) do
-        if not isEnemy(plr) then
-            removeESP(plr)
+        if typeof(plr) == "Instance" and plr:IsA("Player") then
+            if not isEnemy(plr) then
+                removeESP(plr)
+            end
         end
     end
     for _, plr in pairs(game.Players:GetPlayers()) do
@@ -241,6 +306,12 @@ local function refreshESP()
                 removeESP(plr)
                 addESP(plr)
             end
+        end
+    end
+    
+    for _, char in pairs(workspace:GetChildren()) do
+        if isBot(char) and isBotEnemy(char) and not espBoxes[char] then
+            addBotESP(char)
         end
     end
 end
@@ -374,6 +445,31 @@ local function getClosestEnemy()
             end
         end
     end
+    
+    for _, char in pairs(workspace:GetChildren()) do
+        if isBot(char) and isBotEnemy(char) then
+            local humanoid = char:FindFirstChildOfClass("Humanoid")
+            local head = char:FindFirstChild("Head")
+            
+            if humanoid and head and humanoid.Health > 0 then
+                local screenPos, onScreen = workspace.CurrentCamera:WorldToViewportPoint(head.Position)
+                if onScreen then
+                    local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+                    if distance < shortestDistance then
+                        local raycastParams = RaycastParams.new()
+                        raycastParams.FilterDescendantsInstances = {player.Character}
+                        raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+                        local result = workspace:Raycast(workspace.CurrentCamera.CFrame.Position, (head.Position - workspace.CurrentCamera.CFrame.Position).Unit * 1000, raycastParams)
+                        if result and result.Instance:IsDescendantOf(char) then
+                            shortestDistance = distance
+                            closest = head
+                        end
+                    end
+                end
+            end
+        end
+    end
+    
     return closest
 end
 
@@ -405,6 +501,31 @@ local function getClosestEnemyMax()
             end
         end
     end
+    
+    for _, char in pairs(workspace:GetChildren()) do
+        if isBot(char) and isBotEnemy(char) then
+            local humanoid = char:FindFirstChildOfClass("Humanoid")
+            local head = char:FindFirstChild("Head")
+            
+            if humanoid and head and humanoid.Health > 0 then
+                local screenPos, onScreen = workspace.CurrentCamera:WorldToViewportPoint(head.Position)
+                if onScreen then
+                    local raycastParams = RaycastParams.new()
+                    raycastParams.FilterDescendantsInstances = {player.Character}
+                    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+                    local result = workspace:Raycast(cam.CFrame.Position, (head.Position - cam.CFrame.Position).Unit * 1000, raycastParams)
+                    if result and result.Instance:IsDescendantOf(char) then
+                        local distance = (cam.CFrame.Position - head.Position).Magnitude
+                        if distance < shortestDistance then
+                            shortestDistance = distance
+                            closest = head
+                        end
+                    end
+                end
+            end
+        end
+    end
+    
     return closest
 end
 
@@ -428,6 +549,13 @@ local function isEnemyInCrosshair()
             local humanoid = hitChar:FindFirstChildOfClass("Humanoid")
             if humanoid and humanoid.Health > 0 then
                 return true, hitPlayer
+            end
+        end
+        
+        if isBot(hitChar) and isBotEnemy(hitChar) then
+            local humanoid = hitChar:FindFirstChildOfClass("Humanoid")
+            if humanoid and humanoid.Health > 0 then
+                return true, hitChar
             end
         end
     end
