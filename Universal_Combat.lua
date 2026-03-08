@@ -24,7 +24,7 @@ local MainFrame = Instance.new("Frame")
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 MainFrame.Position = UDim2.new(0.02, 0, 0.3, 0)
-MainFrame.Size = UDim2.new(0, 220, 0, 290)
+MainFrame.Size = UDim2.new(0, 220, 0, 335)
 
 local UICorner = Instance.new("UICorner")
 UICorner.CornerRadius = UDim.new(0, 8)
@@ -288,10 +288,51 @@ local autoFireKeyBox = createKeyBox("C", UDim2.new(0, 145, 0, 140))
 local maxBtn, maxIndicator = createButton("Max", UDim2.new(0, 10, 0, 185))
 local maxKeyBox = createKeyBox("V", UDim2.new(0, 145, 0, 185))
 
-local noclipBtn, noclipIndicator = createButton("Noclip", UDim2.new(0, 10, 0, 230))
-local noclipKeyBox = createKeyBox("N", UDim2.new(0, 145, 0, 230))
+local maxModeLabel = Instance.new("TextLabel")
+maxModeLabel.Parent = MainFrame
+maxModeLabel.BackgroundTransparency = 1
+maxModeLabel.Position = UDim2.new(0, 10, 0, 225)
+maxModeLabel.Size = UDim2.new(0, 60, 0, 20)
+maxModeLabel.Font = Enum.Font.Gotham
+maxModeLabel.Text = "Mode:"
+maxModeLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+maxModeLabel.TextSize = 11
+maxModeLabel.TextXAlignment = Enum.TextXAlignment.Left
 
-local perfBtn, perfIndicator = createButton("Performance", UDim2.new(0, 10, 0, 275))
+local maxFastBtn = Instance.new("TextButton")
+maxFastBtn.Parent = MainFrame
+maxFastBtn.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
+maxFastBtn.Position = UDim2.new(0, 55, 0, 225)
+maxFastBtn.Size = UDim2.new(0, 60, 0, 20)
+maxFastBtn.Font = Enum.Font.Gotham
+maxFastBtn.Text = "Fast"
+maxFastBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+maxFastBtn.TextSize = 10
+maxFastBtn.BorderSizePixel = 0
+
+local maxFastCorner = Instance.new("UICorner")
+maxFastCorner.CornerRadius = UDim.new(0, 4)
+maxFastCorner.Parent = maxFastBtn
+
+local maxSlowBtn = Instance.new("TextButton")
+maxSlowBtn.Parent = MainFrame
+maxSlowBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+maxSlowBtn.Position = UDim2.new(0, 120, 0, 225)
+maxSlowBtn.Size = UDim2.new(0, 60, 0, 20)
+maxSlowBtn.Font = Enum.Font.Gotham
+maxSlowBtn.Text = "Slow"
+maxSlowBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+maxSlowBtn.TextSize = 10
+maxSlowBtn.BorderSizePixel = 0
+
+local maxSlowCorner = Instance.new("UICorner")
+maxSlowCorner.CornerRadius = UDim.new(0, 4)
+maxSlowCorner.Parent = maxSlowBtn
+
+local noclipBtn, noclipIndicator = createButton("Noclip", UDim2.new(0, 10, 0, 255))
+local noclipKeyBox = createKeyBox("N", UDim2.new(0, 145, 0, 255))
+
+local perfBtn, perfIndicator = createButton("Performance", UDim2.new(0, 10, 0, 300))
 
 espBtn.MouseButton1Click:Connect(function()
     espEnabled = not espEnabled
@@ -471,18 +512,21 @@ maxBtn.MouseButton1Click:Connect(function()
         aimbotIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
         autoFireIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
         maxIndicator.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
-        maxBtn.Text = maxSlowMode and "Max (Slow)" or "Max (Fast)"
     else
         maxIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-        maxBtn.Text = "Max"
     end
 end)
 
-maxBtn.MouseButton2Click:Connect(function()
-    if maxEnabled then
-        maxSlowMode = not maxSlowMode
-        maxBtn.Text = maxSlowMode and "Max (Slow)" or "Max (Fast)"
-    end
+maxFastBtn.MouseButton1Click:Connect(function()
+    maxSlowMode = false
+    maxFastBtn.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
+    maxSlowBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+end)
+
+maxSlowBtn.MouseButton1Click:Connect(function()
+    maxSlowMode = true
+    maxFastBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    maxSlowBtn.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
 end)
 
 noclipBtn.MouseButton1Click:Connect(function()
