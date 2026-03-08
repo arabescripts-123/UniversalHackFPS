@@ -5,6 +5,9 @@ local player = game.Players.LocalPlayer
 local UIS = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
+repeat task.wait() until player.Character or player.CharacterAdded:Wait()
+task.wait(1)
+
 pcall(function()
     if game.CoreGui:FindFirstChild("UniversalGui") then
         game.CoreGui:FindFirstChild("UniversalGui"):Destroy()
@@ -21,7 +24,7 @@ local MainFrame = Instance.new("Frame")
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 MainFrame.Position = UDim2.new(0.02, 0, 0.3, 0)
-MainFrame.Size = UDim2.new(0, 220, 0, 335)
+MainFrame.Size = UDim2.new(0, 220, 0, 380)
 
 local UICorner = Instance.new("UICorner")
 UICorner.CornerRadius = UDim.new(0, 8)
@@ -139,7 +142,6 @@ local aimbotKey = Enum.KeyCode.X
 local autoFireKey = Enum.KeyCode.C
 local maxKey = Enum.KeyCode.V
 local noclipKey = Enum.KeyCode.N
-local perfKey = Enum.KeyCode.P
 local toggleKey = Enum.KeyCode.Z
 
 local aimbotEnabled = false
@@ -149,6 +151,7 @@ local autoFireEnabled = false
 local maxEnabled = false
 local noclipEnabled = false
 local perfEnabled = false
+local currentFOV = 70
 
 local espEnabled = false
 local espBoxes = {}
@@ -289,7 +292,37 @@ local noclipBtn, noclipIndicator = createButton("Noclip", UDim2.new(0, 10, 0, 23
 local noclipKeyBox = createKeyBox("N", UDim2.new(0, 145, 0, 230))
 
 local perfBtn, perfIndicator = createButton("Performance", UDim2.new(0, 10, 0, 275))
-local perfKeyBox = createKeyBox("P", UDim2.new(0, 145, 0, 275))
+
+local fovLabel = Instance.new("TextLabel")
+fovLabel.Parent = MainFrame
+fovLabel.BackgroundTransparency = 1
+fovLabel.Position = UDim2.new(0, 10, 0, 320)
+fovLabel.Size = UDim2.new(0, 200, 0, 20)
+fovLabel.Font = Enum.Font.Gotham
+fovLabel.Text = "FOV: 70"
+fovLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+fovLabel.TextSize = 12
+fovLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+local fovSlider = Instance.new("Frame")
+fovSlider.Parent = MainFrame
+fovSlider.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+fovSlider.Position = UDim2.new(0, 10, 0, 345)
+fovSlider.Size = UDim2.new(0, 200, 0, 20)
+
+local fovSliderCorner = Instance.new("UICorner")
+fovSliderCorner.CornerRadius = UDim.new(0, 10)
+fovSliderCorner.Parent = fovSlider
+
+local fovFill = Instance.new("Frame")
+fovFill.Parent = fovSlider
+fovFill.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
+fovFill.Size = UDim2.new(0.5, 0, 1, 0)
+fovFill.BorderSizePixel = 0
+
+local fovFillCorner = Instance.new("UICorner")
+fovFillCorner.CornerRadius = UDim.new(0, 10)
+fovFillCorner.Parent = fovFill
 
 espBtn.MouseButton1Click:Connect(function()
     espEnabled = not espEnabled
@@ -306,6 +339,90 @@ local function getClosestEnemy()
     local mouse = player:GetMouse()
     local mousePos = Vector2.new(mouse.X, mouse.Y)
     local closest = nil
+    local shortestDistance = aimbotFOV
+    
+    for _, plr in pairs(game.Players:GetPlayers()) do
+        if isEnemy(plr) and plr.Character then
+            local humanoid = plr.Character:FindFirstChildOfClass("Humanoid")
+            local head = plr.Character:FindFirstChild("Head")
+            
+            if humanoid and head and humanoid.Health > 0 then
+                local screenPos, onScreen = workspace.CurrentCamera:WorldToViewportPoint(head.Position)
+                if onScreen then
+                    local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+                    if distance < shortestDistance then
+                        local raycastParams = RaycastParams.new()
+                        raycastParams.FilterDescendantsInstances = {player.Character}
+                        raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+                        local result = workspace:Raycast(workspace.CurrentCamera.CFrame.Position, (head.Position - workspace.CurrentCamera.CFrame.Position).Unit * 1000, raycastParams)
+                        if result and result.Instance:IsDescendantOf(plr.Character) then
+                            shortestDistance = distance
+                            closest = head
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return closest
+end
+
+local function getClosestEnemyMax()
+    local cam = workspace.CurrentCamera
+    local closest = nil
+    local shortestDistance = math.huge
+    
+    for _, plr in pairs(game.Players:GetPlayers()) do
+        if isEnemy(plr) and plr.Character then
+            local humanoid = plr.Character:FindFirstChildOfClass("Humanoid")
+            local head = plr.Character:FindFirstChild("Head")
+            
+            if humanoid and head and humanoid.Health > 0 then
+                local screenPos, onScreen = workspace.CurrentCamera:WorldToViewportPoint(head.Position)
+                if onScreen then
+                    local raycastParams = RaycastParams.new()
+                    raycastParams.FilterDescendantsInstances = {player.Character}
+                    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+                    local result = workspace:Raycast(cam.CFrame.Position, (head.Position - cam.CFrame.Position).Unit * 1000, raycastParams)
+                    if result and result.Instance:IsDescendantOf(plr.Character) then
+                        local distance = (cam.CFrame.Position - head.Position).Magnitude
+                        if distance < shortestDistance then
+                            shortestDistance = distance
+                            closest = head
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return closest
+end
+
+local function isEnemyInCrosshair()
+    local cam = workspace.CurrentCamera
+    local screenCenter = Vector2.new(cam.ViewportSize.X / 2, cam.ViewportSize.Y / 2)
+    local ray = cam:ViewportPointToRay(screenCenter.X, screenCenter.Y)
+    
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterDescendantsInstances = {player.Character}
+    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+    raycastParams.IgnoreWater = true
+    
+    local result = workspace:Raycast(ray.Origin, ray.Direction * 1000, raycastParams)
+    
+    if result and result.Instance then
+        local hitChar = result.Instance.Parent
+        local hitPlayer = game.Players:GetPlayerFromCharacter(hitChar)
+        
+        if hitPlayer and isEnemy(hitPlayer) then
+            local humanoid = hitChar:FindFirstChildOfClass("Humanoid")
+            if humanoid and humanoid.Health > 0 then
+                return true, hitPlayer
+            end
+        end
+    end
+    return false, nil
+end
     local shortestDistance = aimbotFOV
     
     for _, plr in pairs(game.Players:GetPlayers()) do
@@ -392,21 +509,23 @@ local function isEnemyInCrosshair()
 end
 
 RunService.RenderStepped:Connect(function()
-    if maxEnabled then
-        local target = getClosestEnemyMax()
-        if target then
-            local cam = workspace.CurrentCamera
-            local targetPos = target.Position
-            cam.CFrame = CFrame.new(cam.CFrame.Position, targetPos)
+    pcall(function()
+        if maxEnabled then
+            local target = getClosestEnemyMax()
+            if target then
+                local cam = workspace.CurrentCamera
+                local targetPos = target.Position
+                cam.CFrame = CFrame.new(cam.CFrame.Position, targetPos)
+            end
+        elseif aimbotEnabled and rightMouseDown then
+            local target = getClosestEnemy()
+            if target then
+                local cam = workspace.CurrentCamera
+                local targetPos = target.Position
+                cam.CFrame = CFrame.new(cam.CFrame.Position, targetPos)
+            end
         end
-    elseif aimbotEnabled and rightMouseDown then
-        local target = getClosestEnemy()
-        if target then
-            local cam = workspace.CurrentCamera
-            local targetPos = target.Position
-            cam.CFrame = CFrame.new(cam.CFrame.Position, targetPos)
-        end
-    end
+    end)
 end)
 
 local lastFireTime = 0
@@ -414,24 +533,28 @@ local fireDelay = 0.03
 local isFiring = false
 
 RunService.Heartbeat:Connect(function()
-    local currentTime = tick()
-    
-    if (maxEnabled or autoFireEnabled) and not isFiring then
-        local hasEnemy, enemyPlayer = isEnemyInCrosshair()
+    pcall(function()
+        local currentTime = tick()
         
-        if hasEnemy and (currentTime - lastFireTime) >= fireDelay then
-            isFiring = true
-            lastFireTime = currentTime
+        if (maxEnabled or autoFireEnabled) and not isFiring then
+            local hasEnemy, enemyPlayer = isEnemyInCrosshair()
             
-            task.spawn(function()
-                mouse1press()
-                task.wait(0.02)
-                mouse1release()
-                task.wait(0.01)
-                isFiring = false
-            end)
+            if hasEnemy and (currentTime - lastFireTime) >= fireDelay then
+                isFiring = true
+                lastFireTime = currentTime
+                
+                task.spawn(function()
+                    pcall(function()
+                        mouse1press()
+                        task.wait(0.02)
+                        mouse1release()
+                        task.wait(0.01)
+                        isFiring = false
+                    end)
+                end)
+            end
         end
-    end
+    end)
 end)
 
 aimbotBtn.MouseButton1Click:Connect(function()
@@ -482,57 +605,117 @@ end)
 
 local lighting = game:GetService("Lighting")
 local originalSettings = {}
+local originalTextures = {}
 
 perfBtn.MouseButton1Click:Connect(function()
     perfEnabled = not perfEnabled
-    if perfEnabled then
-        perfIndicator.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
-        
-        originalSettings.Brightness = lighting.Brightness
-        originalSettings.GlobalShadows = lighting.GlobalShadows
-        originalSettings.OutdoorAmbient = lighting.OutdoorAmbient
-        originalSettings.Ambient = lighting.Ambient
-        
-        lighting.Brightness = 2
-        lighting.GlobalShadows = false
-        lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
-        lighting.Ambient = Color3.fromRGB(128, 128, 128)
-        
-        for _, obj in pairs(lighting:GetChildren()) do
-            if obj:IsA("BloomEffect") or obj:IsA("BlurEffect") or obj:IsA("ColorCorrectionEffect") or obj:IsA("SunRaysEffect") or obj:IsA("DepthOfFieldEffect") then
-                obj.Enabled = false
+    pcall(function()
+        if perfEnabled then
+            perfIndicator.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
+            
+            originalSettings.Brightness = lighting.Brightness
+            originalSettings.GlobalShadows = lighting.GlobalShadows
+            originalSettings.OutdoorAmbient = lighting.OutdoorAmbient
+            originalSettings.Ambient = lighting.Ambient
+            
+            lighting.Brightness = 2
+            lighting.GlobalShadows = false
+            lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
+            lighting.Ambient = Color3.fromRGB(128, 128, 128)
+            
+            for _, obj in pairs(lighting:GetChildren()) do
+                if obj:IsA("BloomEffect") or obj:IsA("BlurEffect") or obj:IsA("ColorCorrectionEffect") or obj:IsA("SunRaysEffect") or obj:IsA("DepthOfFieldEffect") then
+                    obj.Enabled = false
+                end
             end
-        end
-        
-        settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
-        setfpscap(999)
-    else
-        perfIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-        
-        lighting.Brightness = originalSettings.Brightness or 1
-        lighting.GlobalShadows = originalSettings.GlobalShadows or true
-        lighting.OutdoorAmbient = originalSettings.OutdoorAmbient or Color3.fromRGB(70, 70, 70)
-        lighting.Ambient = originalSettings.Ambient or Color3.fromRGB(70, 70, 70)
-        
-        for _, obj in pairs(lighting:GetChildren()) do
-            if obj:IsA("BloomEffect") or obj:IsA("BlurEffect") or obj:IsA("ColorCorrectionEffect") or obj:IsA("SunRaysEffect") or obj:IsA("DepthOfFieldEffect") then
-                obj.Enabled = true
+            
+            for _, obj in pairs(workspace:GetDescendants()) do
+                if obj:IsA("BasePart") and not obj.Parent:IsA("Model") or (obj.Parent:IsA("Model") and not game.Players:GetPlayerFromCharacter(obj.Parent)) then
+                    if obj:IsA("MeshPart") then
+                        originalTextures[obj] = {TextureID = obj.TextureID}
+                        obj.TextureID = ""
+                    elseif obj:IsA("Part") or obj:IsA("WedgePart") or obj:IsA("CornerWedgePart") then
+                        for _, decal in pairs(obj:GetChildren()) do
+                            if decal:IsA("Decal") or decal:IsA("Texture") then
+                                originalTextures[decal] = {Transparency = decal.Transparency}
+                                decal.Transparency = 1
+                            end
+                        end
+                    end
+                end
             end
+            
+            settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+            setfpscap(999)
+        else
+            perfIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+            
+            lighting.Brightness = originalSettings.Brightness or 1
+            lighting.GlobalShadows = originalSettings.GlobalShadows or true
+            lighting.OutdoorAmbient = originalSettings.OutdoorAmbient or Color3.fromRGB(70, 70, 70)
+            lighting.Ambient = originalSettings.Ambient or Color3.fromRGB(70, 70, 70)
+            
+            for _, obj in pairs(lighting:GetChildren()) do
+                if obj:IsA("BloomEffect") or obj:IsA("BlurEffect") or obj:IsA("ColorCorrectionEffect") or obj:IsA("SunRaysEffect") or obj:IsA("DepthOfFieldEffect") then
+                    obj.Enabled = true
+                end
+            end
+            
+            for obj, data in pairs(originalTextures) do
+                if obj:IsA("MeshPart") then
+                    obj.TextureID = data.TextureID
+                elseif obj:IsA("Decal") or obj:IsA("Texture") then
+                    obj.Transparency = data.Transparency
+                end
+            end
+            originalTextures = {}
+            
+            settings().Rendering.QualityLevel = Enum.QualityLevel.Automatic
+            setfpscap(60)
         end
+    end)
+end)
+
+local fovDragging = false
+fovSlider.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        fovDragging = true
+    end
+end)
+
+UIS.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        fovDragging = false
+    end
+end)
+
+UIS.InputChanged:Connect(function(input)
+    if fovDragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local mousePos = UIS:GetMouseLocation()
+        local sliderPos = fovSlider.AbsolutePosition
+        local sliderSize = fovSlider.AbsoluteSize
         
-        settings().Rendering.QualityLevel = Enum.QualityLevel.Automatic
-        setfpscap(60)
+        local relativeX = math.clamp(mousePos.X - sliderPos.X, 0, sliderSize.X)
+        local percentage = relativeX / sliderSize.X
+        
+        currentFOV = math.floor(70 + (percentage * 50))
+        fovLabel.Text = "FOV: " .. currentFOV
+        fovFill.Size = UDim2.new(percentage, 0, 1, 0)
+        
+        workspace.CurrentCamera.FieldOfView = currentFOV
     end
 end)
 
 RunService.Stepped:Connect(function()
-    if noclipEnabled and player.Character then
-        for _, part in pairs(player.Character:GetDescendants()) do
-            if part:IsA("BasePart") then
-                part.CanCollide = false
+    pcall(function()
+        if noclipEnabled and player.Character then
+            for _, part in pairs(player.Character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                end
             end
         end
-    end
+    end)
 end)
 
 espKeyBox.FocusLost:Connect(function()
@@ -595,18 +778,6 @@ noclipKeyBox.FocusLost:Connect(function()
     end
 end)
 
-perfKeyBox.FocusLost:Connect(function()
-    local text = perfKeyBox.Text:upper()
-    local success, key = pcall(function() return Enum.KeyCode[text] end)
-    if success and key then
-        perfKey = key
-        perfKeyBox.Text = text
-    else
-        perfKeyBox.Text = "P"
-        perfKey = Enum.KeyCode.P
-    end
-end)
-
 UIS.InputBegan:Connect(function(input, gameProcessed)
     if input.UserInputType == Enum.UserInputType.MouseButton2 then
         rightMouseDown = true
@@ -660,9 +831,6 @@ UIS.InputBegan:Connect(function(input, gameProcessed)
         else
             noclipIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
         end
-    elseif input.KeyCode == perfKey then
-        perfBtn:GetPropertyChangedSignal("BackgroundColor3"):Fire()
-        perfBtn.MouseButton1Click:Fire()
     end
 end)
 
@@ -674,4 +842,4 @@ end)
 
 ScreenGui.Parent = game.CoreGui
 
-print("[Universal] Carregado! Z=Menu J=ESP X=Aimbot C=AutoFire V=Max N=Noclip P=Performance | Aimbot: Segure BOTAO DIREITO")
+print("[Universal] Carregado! Z=Menu J=ESP X=Aimbot C=AutoFire V=Max N=Noclip | Aimbot: Segure BOTAO DIREITO")
