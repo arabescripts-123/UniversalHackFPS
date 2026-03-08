@@ -369,6 +369,7 @@ maxModeLabel.Text = "Mode:"
 maxModeLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 maxModeLabel.TextSize = 11
 maxModeLabel.TextXAlignment = Enum.TextXAlignment.Left
+maxModeLabel.Visible = false
 
 local maxFastBtn = Instance.new("TextButton")
 maxFastBtn.Parent = MainFrame
@@ -380,6 +381,7 @@ maxFastBtn.Text = "Fast"
 maxFastBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 maxFastBtn.TextSize = 10
 maxFastBtn.BorderSizePixel = 0
+maxFastBtn.Visible = false
 
 local maxFastCorner = Instance.new("UICorner")
 maxFastCorner.CornerRadius = UDim.new(0, 4)
@@ -395,6 +397,7 @@ maxSlowBtn.Text = "Slow"
 maxSlowBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 maxSlowBtn.TextSize = 10
 maxSlowBtn.BorderSizePixel = 0
+maxSlowBtn.Visible = false
 
 local maxSlowCorner = Instance.new("UICorner")
 maxSlowCorner.CornerRadius = UDim.new(0, 4)
@@ -642,7 +645,13 @@ maxBtn.MouseButton1Click:Connect(function()
         maxIndicator.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
     else
         maxIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+        maxModeLabel.Visible = false
+        maxFastBtn.Visible = false
+        maxSlowBtn.Visible = false
     end
+    maxModeLabel.Visible = maxEnabled
+    maxFastBtn.Visible = maxEnabled
+    maxSlowBtn.Visible = maxEnabled
 end)
 
 maxFastBtn.MouseButton1Click:Connect(function()
