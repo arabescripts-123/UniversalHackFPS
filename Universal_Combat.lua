@@ -718,6 +718,9 @@ perfBtn.MouseButton1Click:Connect(function()
                             end
                         end
                     end
+                elseif obj:IsA("ParticleEmitter") or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles") then
+                    originalTextures[obj] = {Enabled = obj.Enabled}
+                    obj.Enabled = false
                 end
             end
             
@@ -742,6 +745,8 @@ perfBtn.MouseButton1Click:Connect(function()
                     obj.TextureID = data.TextureID
                 elseif obj:IsA("Decal") or obj:IsA("Texture") then
                     obj.Transparency = data.Transparency
+                elseif obj:IsA("ParticleEmitter") or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles") then
+                    obj.Enabled = data.Enabled
                 end
             end
             originalTextures = {}
