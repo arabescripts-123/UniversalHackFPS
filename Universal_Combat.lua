@@ -24,7 +24,7 @@ local MainFrame = Instance.new("Frame")
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 MainFrame.Position = UDim2.new(0.02, 0, 0.3, 0)
-MainFrame.Size = UDim2.new(0, 220, 0, 380)
+MainFrame.Size = UDim2.new(0, 220, 0, 290)
 
 local UICorner = Instance.new("UICorner")
 UICorner.CornerRadius = UDim.new(0, 8)
@@ -149,9 +149,9 @@ local aimbotFOV = 300
 local rightMouseDown = false
 local autoFireEnabled = false
 local maxEnabled = false
+local maxSlowMode = false
 local noclipEnabled = false
 local perfEnabled = false
-local currentFOV = 70
 
 local espEnabled = false
 local espBoxes = {}
@@ -293,37 +293,6 @@ local noclipKeyBox = createKeyBox("N", UDim2.new(0, 145, 0, 230))
 
 local perfBtn, perfIndicator = createButton("Performance", UDim2.new(0, 10, 0, 275))
 
-local fovLabel = Instance.new("TextLabel")
-fovLabel.Parent = MainFrame
-fovLabel.BackgroundTransparency = 1
-fovLabel.Position = UDim2.new(0, 10, 0, 320)
-fovLabel.Size = UDim2.new(0, 200, 0, 20)
-fovLabel.Font = Enum.Font.Gotham
-fovLabel.Text = "FOV: 70"
-fovLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-fovLabel.TextSize = 12
-fovLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-local fovSlider = Instance.new("Frame")
-fovSlider.Parent = MainFrame
-fovSlider.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-fovSlider.Position = UDim2.new(0, 10, 0, 345)
-fovSlider.Size = UDim2.new(0, 200, 0, 20)
-
-local fovSliderCorner = Instance.new("UICorner")
-fovSliderCorner.CornerRadius = UDim.new(0, 10)
-fovSliderCorner.Parent = fovSlider
-
-local fovFill = Instance.new("Frame")
-fovFill.Parent = fovSlider
-fovFill.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
-fovFill.Size = UDim2.new(0.5, 0, 1, 0)
-fovFill.BorderSizePixel = 0
-
-local fovFillCorner = Instance.new("UICorner")
-fovFillCorner.CornerRadius = UDim.new(0, 10)
-fovFillCorner.Parent = fovFill
-
 espBtn.MouseButton1Click:Connect(function()
     espEnabled = not espEnabled
     if espEnabled then
@@ -451,11 +420,12 @@ local isFiring = false
 RunService.Heartbeat:Connect(function()
     pcall(function()
         local currentTime = tick()
+        local currentDelay = (maxEnabled and maxSlowMode) and 0.5 or fireDelay
         
         if (maxEnabled or autoFireEnabled) and not isFiring then
             local hasEnemy, enemyPlayer = isEnemyInCrosshair()
             
-            if hasEnemy and (currentTime - lastFireTime) >= fireDelay then
+            if hasEnemy and (currentTime - lastFireTime) >= currentDelay then
                 isFiring = true
                 lastFireTime = currentTime
                 
@@ -501,8 +471,17 @@ maxBtn.MouseButton1Click:Connect(function()
         aimbotIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
         autoFireIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
         maxIndicator.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
+        maxBtn.Text = maxSlowMode and "Max (Slow)" or "Max (Fast)"
     else
         maxIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+        maxBtn.Text = "Max"
+    end
+end)
+
+maxBtn.MouseButton2Click:Connect(function()
+    if maxEnabled then
+        maxSlowMode = not maxSlowMode
+        maxBtn.Text = maxSlowMode and "Max (Slow)" or "Max (Fast)"
     end
 end)
 
@@ -588,51 +567,6 @@ perfBtn.MouseButton1Click:Connect(function()
             
             settings().Rendering.QualityLevel = Enum.QualityLevel.Automatic
             setfpscap(60)
-        end
-    end)
-end)
-
-local fovDragging = false
-fovSlider.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        fovDragging = true
-    end
-end)
-
-UIS.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        fovDragging = false
-    end
-end)
-
-UIS.InputChanged:Connect(function(input)
-    if fovDragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-        local mousePos = UIS:GetMouseLocation()
-        local sliderPos = fovSlider.AbsolutePosition
-        local sliderSize = fovSlider.AbsoluteSize
-        
-        local relativeX = math.clamp(mousePos.X - sliderPos.X, 0, sliderSize.X)
-        local percentage = relativeX / sliderSize.X
-        
-        currentFOV = math.floor(70 + (percentage * 50))
-        fovLabel.Text = "FOV: " .. currentFOV
-        fovFill.Size = UDim2.new(percentage, 0, 1, 0)
-    end
-end)
-
-RunService.RenderStepped:Connect(function()
-    pcall(function()
-        local cam = workspace.CurrentCamera
-        if player.Character then
-            local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
-            if humanoid then
-                local isFirstPerson = (cam.Focus.Position - cam.CFrame.Position).Magnitude < 1
-                if isFirstPerson then
-                    cam.FieldOfView = currentFOV
-                else
-                    cam.FieldOfView = 70
-                end
-            end
         end
     end)
 end)
