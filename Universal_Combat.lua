@@ -21,7 +21,7 @@ local MainFrame = Instance.new("Frame")
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 MainFrame.Position = UDim2.new(0.02, 0, 0.3, 0)
-MainFrame.Size = UDim2.new(0, 220, 0, 245)
+MainFrame.Size = UDim2.new(0, 220, 0, 290)
 
 local UICorner = Instance.new("UICorner")
 UICorner.CornerRadius = UDim.new(0, 8)
@@ -124,6 +124,7 @@ local espKey = Enum.KeyCode.J
 local aimbotKey = Enum.KeyCode.X
 local autoFireKey = Enum.KeyCode.C
 local maxKey = Enum.KeyCode.V
+local wallbangKey = Enum.KeyCode.N
 local toggleKey = Enum.KeyCode.Z
 
 local aimbotEnabled = false
@@ -131,6 +132,7 @@ local aimbotFOV = 300
 local rightMouseDown = false
 local autoFireEnabled = false
 local maxEnabled = false
+local wallbangEnabled = false
 
 local espEnabled = false
 local espBoxes = {}
@@ -267,6 +269,9 @@ local autoFireKeyBox = createKeyBox("C", UDim2.new(0, 145, 0, 140))
 local maxBtn, maxIndicator = createButton("Max", UDim2.new(0, 10, 0, 185))
 local maxKeyBox = createKeyBox("V", UDim2.new(0, 145, 0, 185))
 
+local wallbangBtn, wallbangIndicator = createButton("Wallbang", UDim2.new(0, 10, 0, 230))
+local wallbangKeyBox = createKeyBox("N", UDim2.new(0, 145, 0, 230))
+
 espBtn.MouseButton1Click:Connect(function()
     espEnabled = not espEnabled
     if espEnabled then
@@ -294,13 +299,18 @@ local function getClosestEnemy()
                 if onScreen then
                     local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
                     if distance < shortestDistance then
-                        local raycastParams = RaycastParams.new()
-                        raycastParams.FilterDescendantsInstances = {player.Character}
-                        raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-                        local result = workspace:Raycast(workspace.CurrentCamera.CFrame.Position, (head.Position - workspace.CurrentCamera.CFrame.Position).Unit * 1000, raycastParams)
-                        if result and result.Instance:IsDescendantOf(plr.Character) then
+                        if wallbangEnabled then
                             shortestDistance = distance
                             closest = head
+                        else
+                            local raycastParams = RaycastParams.new()
+                            raycastParams.FilterDescendantsInstances = {player.Character}
+                            raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+                            local result = workspace:Raycast(workspace.CurrentCamera.CFrame.Position, (head.Position - workspace.CurrentCamera.CFrame.Position).Unit * 1000, raycastParams)
+                            if result and result.Instance:IsDescendantOf(plr.Character) then
+                                shortestDistance = distance
+                                closest = head
+                            end
                         end
                     end
                 end
@@ -323,15 +333,23 @@ local function getClosestEnemyMax()
             if humanoid and head and humanoid.Health > 0 then
                 local screenPos, onScreen = workspace.CurrentCamera:WorldToViewportPoint(head.Position)
                 if onScreen then
-                    local raycastParams = RaycastParams.new()
-                    raycastParams.FilterDescendantsInstances = {player.Character}
-                    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-                    local result = workspace:Raycast(cam.CFrame.Position, (head.Position - cam.CFrame.Position).Unit * 1000, raycastParams)
-                    if result and result.Instance:IsDescendantOf(plr.Character) then
+                    if wallbangEnabled then
                         local distance = (cam.CFrame.Position - head.Position).Magnitude
                         if distance < shortestDistance then
                             shortestDistance = distance
                             closest = head
+                        end
+                    else
+                        local raycastParams = RaycastParams.new()
+                        raycastParams.FilterDescendantsInstances = {player.Character}
+                        raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+                        local result = workspace:Raycast(cam.CFrame.Position, (head.Position - cam.CFrame.Position).Unit * 1000, raycastParams)
+                        if result and result.Instance:IsDescendantOf(plr.Character) then
+                            local distance = (cam.CFrame.Position - head.Position).Magnitude
+                            if distance < shortestDistance then
+                                shortestDistance = distance
+                                closest = head
+                            end
                         end
                     end
                 end
@@ -387,25 +405,45 @@ local function isEnemyInCrosshair()
     local screenCenter = Vector2.new(cam.ViewportSize.X / 2, cam.ViewportSize.Y / 2)
     local ray = cam:ViewportPointToRay(screenCenter.X, screenCenter.Y)
     
-    local raycastParams = RaycastParams.new()
-    raycastParams.FilterDescendantsInstances = {player.Character}
-    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-    raycastParams.IgnoreWater = true
-    
-    local result = workspace:Raycast(ray.Origin, ray.Direction * 1000, raycastParams)
-    
-    if result and result.Instance then
-        local hitChar = result.Instance.Parent
-        local hitPlayer = game.Players:GetPlayerFromCharacter(hitChar)
-        
-        if hitPlayer and isEnemy(hitPlayer) then
-            local humanoid = hitChar:FindFirstChild("Humanoid")
-            if humanoid and humanoid.Health > 0 then
-                return true, hitPlayer
+    if wallbangEnabled then
+        for _, plr in pairs(game.Players:GetPlayers()) do
+            if isEnemy(plr) and plr.Character then
+                local humanoid = plr.Character:FindFirstChild("Humanoid")
+                local head = plr.Character:FindFirstChild("Head")
+                
+                if humanoid and head and humanoid.Health > 0 then
+                    local screenPos, onScreen = cam:WorldToViewportPoint(head.Position)
+                    if onScreen then
+                        local distance = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+                        if distance < 100 then
+                            return true, plr
+                        end
+                    end
+                end
             end
         end
+        return false, nil
+    else
+        local raycastParams = RaycastParams.new()
+        raycastParams.FilterDescendantsInstances = {player.Character}
+        raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+        raycastParams.IgnoreWater = true
+        
+        local result = workspace:Raycast(ray.Origin, ray.Direction * 1000, raycastParams)
+        
+        if result and result.Instance then
+            local hitChar = result.Instance.Parent
+            local hitPlayer = game.Players:GetPlayerFromCharacter(hitChar)
+            
+            if hitPlayer and isEnemy(hitPlayer) then
+                local humanoid = hitChar:FindFirstChild("Humanoid")
+                if humanoid and humanoid.Health > 0 then
+                    return true, hitPlayer
+                end
+            end
+        end
+        return false, nil
     end
-    return false, nil
 end
 
 RunService.RenderStepped:Connect(function()
@@ -484,6 +522,15 @@ maxBtn.MouseButton1Click:Connect(function()
     end
 end)
 
+wallbangBtn.MouseButton1Click:Connect(function()
+    wallbangEnabled = not wallbangEnabled
+    if wallbangEnabled then
+        wallbangIndicator.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
+    else
+        wallbangIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+    end
+end)
+
 espKeyBox.FocusLost:Connect(function()
     local text = espKeyBox.Text:upper()
     local success, key = pcall(function() return Enum.KeyCode[text] end)
@@ -529,6 +576,18 @@ maxKeyBox.FocusLost:Connect(function()
     else
         maxKeyBox.Text = "V"
         maxKey = Enum.KeyCode.V
+    end
+end)
+
+wallbangKeyBox.FocusLost:Connect(function()
+    local text = wallbangKeyBox.Text:upper()
+    local success, key = pcall(function() return Enum.KeyCode[text] end)
+    if success and key then
+        wallbangKey = key
+        wallbangKeyBox.Text = text
+    else
+        wallbangKeyBox.Text = "N"
+        wallbangKey = Enum.KeyCode.N
     end
 end)
 
@@ -578,6 +637,13 @@ UIS.InputBegan:Connect(function(input, gameProcessed)
         else
             maxIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
         end
+    elseif input.KeyCode == wallbangKey then
+        wallbangEnabled = not wallbangEnabled
+        if wallbangEnabled then
+            wallbangIndicator.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
+        else
+            wallbangIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+        end
     end
 end)
 
@@ -589,4 +655,4 @@ end)
 
 ScreenGui.Parent = game.CoreGui
 
-print("[Universal] Carregado! Z=Menu J=ESP X=Aimbot C=AutoFire V=Max | Aimbot: Segure BOTAO DIREITO")
+print("[Universal] Carregado! Z=Menu J=ESP X=Aimbot C=AutoFire V=Max N=Wallbang | Aimbot: Segure BOTAO DIREITO")
