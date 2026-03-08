@@ -588,22 +588,19 @@ local function isEnemyInCrosshair()
     return false, nil
 end
 
-RunService.RenderStepped:Connect(function()
+RunService.RenderStepped:Connect(function(dt)
     pcall(function()
+        local cam = workspace.CurrentCamera
+        local target = nil
+        
         if maxEnabled then
-            local target = getClosestEnemyMax()
-            if target then
-                local cam = workspace.CurrentCamera
-                local targetPos = target.Position
-                cam.CFrame = CFrame.new(cam.CFrame.Position, targetPos)
-            end
+            target = getClosestEnemyMax()
         elseif aimbotEnabled and rightMouseDown then
-            local target = getClosestEnemy()
-            if target then
-                local cam = workspace.CurrentCamera
-                local targetPos = target.Position
-                cam.CFrame = CFrame.new(cam.CFrame.Position, targetPos)
-            end
+            target = getClosestEnemy()
+        end
+        
+        if target then
+            cam.CFrame = CFrame.new(cam.CFrame.Position, target.Position)
         end
     end)
 end)
