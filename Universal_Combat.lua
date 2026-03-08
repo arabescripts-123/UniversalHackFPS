@@ -1,266 +1,592 @@
 -- Universal Combat Script
-local Players = game:GetService("Players")
+print("[Universal] Iniciando...")
+
+local player = game.Players.LocalPlayer
+local UIS = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local Camera = workspace.CurrentCamera
-local LocalPlayer = Players.LocalPlayer
 
--- Configurações
-local Config = {
-    Aimbot = true,
-    AutoFire = true,
-    ESP = true,
-    AimbotFOV = 200,
-    AimbotSmooth = 0.1,
-    ESPColor = Color3.fromRGB(255, 0, 0)
-}
-
--- Funções auxiliares
-local function IsEnemy(player)
-    if not player or player == LocalPlayer then return false end
-    
-    -- Verifica se tem sistema de times
-    if player.Team and LocalPlayer.Team then
-        return player.Team ~= LocalPlayer.Team
+pcall(function()
+    if game.CoreGui:FindFirstChild("UniversalGui") then
+        game.CoreGui:FindFirstChild("UniversalGui"):Destroy()
     end
-    
-    -- Se não tem times, considera todos como inimigos
-    return true
-end
+end)
 
-local function GetCharacter(player)
-    return player.Character
-end
+task.wait(1)
 
-local function GetRootPart(character)
-    return character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso"))
-end
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "UniversalGui"
+ScreenGui.ResetOnSpawn = false
 
-local function GetHead(character)
-    return character and character:FindFirstChild("Head")
-end
+local MainFrame = Instance.new("Frame")
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+MainFrame.Position = UDim2.new(0.02, 0, 0.3, 0)
+MainFrame.Size = UDim2.new(0, 220, 0, 245)
 
-local function IsAlive(character)
-    if not character then return false end
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-    return humanoid and humanoid.Health > 0
-end
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 8)
+UICorner.Parent = MainFrame
 
--- ESP System
-local ESPObjects = {}
+local UIStroke = Instance.new("UIStroke")
+UIStroke.Parent = MainFrame
+UIStroke.Color = Color3.fromRGB(0, 0, 0)
+UIStroke.Thickness = 3
 
-local function CreateESP(player)
-    local character = GetCharacter(player)
-    if not character then return end
-    
-    local rootPart = GetRootPart(character)
-    if not rootPart then return end
-    
-    -- Box ESP
-    local box = Drawing.new("Square")
-    box.Visible = false
-    box.Color = Config.ESPColor
-    box.Thickness = 2
-    box.Transparency = 1
-    box.Filled = false
-    
-    -- Name ESP
-    local name = Drawing.new("Text")
-    name.Visible = false
-    name.Color = Config.ESPColor
-    name.Size = 18
-    name.Center = true
-    name.Outline = true
-    name.Text = player.Name
-    
-    -- Health ESP
-    local health = Drawing.new("Text")
-    health.Visible = false
-    health.Color = Color3.fromRGB(0, 255, 0)
-    health.Size = 16
-    health.Center = true
-    health.Outline = true
-    
-    ESPObjects[player] = {box = box, name = name, health = health}
-end
+local Title = Instance.new("TextLabel")
+Title.Parent = MainFrame
+Title.BackgroundTransparency = 1
+Title.Size = UDim2.new(1, 0, 0, 40)
+Title.Font = Enum.Font.GothamBold
+Title.Text = "Universal Script"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 18
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Position = UDim2.new(0, 10, 0, 0)
+Title.Active = true
 
-local function UpdateESP(player)
-    if not Config.ESP or not IsEnemy(player) then
-        if ESPObjects[player] then
-            ESPObjects[player].box.Visible = false
-            ESPObjects[player].name.Visible = false
-            ESPObjects[player].health.Visible = false
-        end
-        return
+local dragging, dragInput, dragStart, startPos
+
+Title.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = MainFrame.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
     end
-    
-    local character = GetCharacter(player)
-    if not IsAlive(character) then
-        if ESPObjects[player] then
-            ESPObjects[player].box.Visible = false
-            ESPObjects[player].name.Visible = false
-            ESPObjects[player].health.Visible = false
-        end
-        return
+end)
+
+Title.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        dragInput = input
     end
-    
-    if not ESPObjects[player] then
-        CreateESP(player)
+end)
+
+UIS.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - dragStart
+        MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
     end
+end)
+
+local function createButton(text, position)
+    local Button = Instance.new("TextButton")
+    local BtnCorner = Instance.new("UICorner")
+    local Indicator = Instance.new("Frame")
+    local IndicatorCorner = Instance.new("UICorner")
     
-    local rootPart = GetRootPart(character)
-    local head = GetHead(character)
-    if not rootPart or not head then return end
+    Button.Parent = MainFrame
+    Button.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+    Button.Position = position
+    Button.Size = UDim2.new(0, 130, 0, 35)
+    Button.Font = Enum.Font.Gotham
+    Button.Text = text
+    Button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Button.TextSize = 13
     
-    local rootPos, rootVis = Camera:WorldToViewportPoint(rootPart.Position)
-    local headPos = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
-    local legPos = Camera:WorldToViewportPoint(rootPart.Position - Vector3.new(0, 3, 0))
+    BtnCorner.CornerRadius = UDim.new(0, 6)
+    BtnCorner.Parent = Button
     
-    if rootVis then
-        local height = (headPos.Y - legPos.Y)
-        local width = height / 2
+    Indicator.Parent = Button
+    Indicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+    Indicator.Position = UDim2.new(1, -25, 0.5, -8)
+    Indicator.Size = UDim2.new(0, 16, 0, 16)
+    Indicator.BorderSizePixel = 0
+    
+    IndicatorCorner.CornerRadius = UDim.new(1, 0)
+    IndicatorCorner.Parent = Indicator
+    
+    return Button, Indicator
+end
+
+local function createKeyBox(text, position)
+    local Box = Instance.new("TextBox")
+    Box.Parent = MainFrame
+    Box.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    Box.Position = position
+    Box.Size = UDim2.new(0, 35, 0, 35)
+    Box.Font = Enum.Font.Gotham
+    Box.Text = text
+    Box.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Box.TextSize = 10
+    Box.ClearTextOnFocus = false
+    
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0, 6)
+    Corner.Parent = Box
+    return Box
+end
+
+local espKey = Enum.KeyCode.J
+local aimbotKey = Enum.KeyCode.X
+local autoFireKey = Enum.KeyCode.C
+local maxKey = Enum.KeyCode.V
+local toggleKey = Enum.KeyCode.Z
+
+local aimbotEnabled = false
+local aimbotFOV = 300
+local rightMouseDown = false
+local autoFireEnabled = false
+local maxEnabled = false
+
+local espEnabled = false
+local espBoxes = {}
+local espConnections = {}
+
+local function isEnemy(otherPlayer)
+    if not otherPlayer or otherPlayer == player then return false end
+    if not player.Team or not otherPlayer.Team then return true end
+    if player.Team.Name == "FFA" or otherPlayer.Team.Name == "FFA" then return true end
+    return otherPlayer.Team ~= player.Team
+end
+
+local function addESP(plr)
+    if plr == player or not espEnabled then return end
+    
+    local function createHighlight(char)
+        task.wait(0.1)
+        if not espEnabled then return end
         
-        ESPObjects[player].box.Size = Vector2.new(width, height)
-        ESPObjects[player].box.Position = Vector2.new(rootPos.X - width / 2, rootPos.Y - height / 2)
-        ESPObjects[player].box.Visible = true
-        
-        ESPObjects[player].name.Position = Vector2.new(rootPos.X, headPos.Y - 20)
-        ESPObjects[player].name.Visible = true
-        
-        local humanoid = character:FindFirstChildOfClass("Humanoid")
-        if humanoid then
-            ESPObjects[player].health.Text = math.floor(humanoid.Health)
-            ESPObjects[player].health.Position = Vector2.new(rootPos.X, legPos.Y + 5)
-            ESPObjects[player].health.Visible = true
+        pcall(function()
+            if not isEnemy(plr) then return end
+            
+            local head = char:FindFirstChild("Head")
+            if not head then return end
+            
+            local color = Color3.fromRGB(255, 0, 0)
+            
+            local highlight = Instance.new("Highlight")
+            highlight.FillColor = color
+            highlight.OutlineColor = color
+            highlight.FillTransparency = 0.7
+            highlight.OutlineTransparency = 0.2
+            highlight.Adornee = char
+            highlight.Parent = char
+            
+            local billboard = Instance.new("BillboardGui")
+            billboard.Adornee = head
+            billboard.Size = UDim2.new(0, 100, 0, 50)
+            billboard.StudsOffset = Vector3.new(0, 3, 0)
+            billboard.AlwaysOnTop = true
+            billboard.Parent = head
+            
+            local nameLabel = Instance.new("TextLabel")
+            nameLabel.Size = UDim2.new(1, 0, 1, 0)
+            nameLabel.BackgroundTransparency = 1
+            nameLabel.Text = plr.Name
+            nameLabel.TextColor3 = color
+            nameLabel.TextStrokeTransparency = 0.5
+            nameLabel.Font = Enum.Font.GothamBold
+            nameLabel.TextSize = 14
+            nameLabel.Parent = billboard
+            
+            if not espBoxes[plr] then espBoxes[plr] = {} end
+            table.insert(espBoxes[plr], highlight)
+            table.insert(espBoxes[plr], billboard)
+        end)
+    end
+    
+    if plr.Character then createHighlight(plr.Character) end
+    espConnections[plr] = plr.CharacterAdded:Connect(function(char)
+        if espEnabled then createHighlight(char) end
+    end)
+end
+
+local function removeESP(plr)
+    if espBoxes[plr] then
+        for _, v in pairs(espBoxes[plr]) do
+            pcall(function() v:Destroy() end)
         end
+        espBoxes[plr] = nil
+    end
+    if espConnections[plr] then
+        espConnections[plr]:Disconnect()
+        espConnections[plr] = nil
+    end
+end
+
+local function refreshESP()
+    for plr, _ in pairs(espBoxes) do
+        if not isEnemy(plr) then
+            removeESP(plr)
+        end
+    end
+    for _, plr in pairs(game.Players:GetPlayers()) do
+        if plr ~= player and isEnemy(plr) then
+            if not espBoxes[plr] and plr.Character then
+                removeESP(plr)
+                addESP(plr)
+            end
+        end
+    end
+end
+
+local function enableESP()
+    for _, plr in pairs(game.Players:GetPlayers()) do addESP(plr) end
+    espConnections.playerAdded = game.Players.PlayerAdded:Connect(function(plr)
+        if espEnabled then addESP(plr) end
+    end)
+    espConnections.playerRemoving = game.Players.PlayerRemoving:Connect(function(plr)
+        removeESP(plr)
+    end)
+    espConnections.refresh = RunService.Heartbeat:Connect(function()
+        if espEnabled and tick() % 2 < 0.016 then
+            refreshESP()
+        end
+    end)
+end
+
+local function disableESP()
+    for plr, _ in pairs(espBoxes) do removeESP(plr) end
+    if espConnections.playerAdded then
+        espConnections.playerAdded:Disconnect()
+        espConnections.playerAdded = nil
+    end
+    if espConnections.playerRemoving then
+        espConnections.playerRemoving:Disconnect()
+        espConnections.playerRemoving = nil
+    end
+    if espConnections.refresh then
+        espConnections.refresh:Disconnect()
+        espConnections.refresh = nil
+    end
+end
+
+local espBtn, espIndicator = createButton("ESP", UDim2.new(0, 10, 0, 50))
+local espKeyBox = createKeyBox("J", UDim2.new(0, 145, 0, 50))
+
+local aimbotBtn, aimbotIndicator = createButton("Aimbot", UDim2.new(0, 10, 0, 95))
+local aimbotKeyBox = createKeyBox("X", UDim2.new(0, 145, 0, 95))
+
+local autoFireBtn, autoFireIndicator = createButton("Auto Fire", UDim2.new(0, 10, 0, 140))
+local autoFireKeyBox = createKeyBox("C", UDim2.new(0, 145, 0, 140))
+
+local maxBtn, maxIndicator = createButton("Max", UDim2.new(0, 10, 0, 185))
+local maxKeyBox = createKeyBox("V", UDim2.new(0, 145, 0, 185))
+
+espBtn.MouseButton1Click:Connect(function()
+    espEnabled = not espEnabled
+    if espEnabled then
+        enableESP()
+        espIndicator.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
     else
-        ESPObjects[player].box.Visible = false
-        ESPObjects[player].name.Visible = false
-        ESPObjects[player].health.Visible = false
+        disableESP()
+        espIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
     end
-end
+end)
 
-local function RemoveESP(player)
-    if ESPObjects[player] then
-        ESPObjects[player].box:Remove()
-        ESPObjects[player].name:Remove()
-        ESPObjects[player].health:Remove()
-        ESPObjects[player] = nil
-    end
-end
-
--- Aimbot System
-local function GetClosestEnemy()
-    local closestPlayer = nil
-    local shortestDistance = Config.AimbotFOV
+local function getClosestEnemy()
+    local mouse = player:GetMouse()
+    local mousePos = Vector2.new(mouse.X, mouse.Y)
+    local closest = nil
+    local shortestDistance = aimbotFOV
     
-    for _, player in pairs(Players:GetPlayers()) do
-        if IsEnemy(player) then
-            local character = GetCharacter(player)
-            if IsAlive(character) then
-                local head = GetHead(character)
-                if head then
-                    local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
-                    if onScreen then
-                        local distance = (Vector2.new(screenPos.X, screenPos.Y) - Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)).Magnitude
-                        if distance < shortestDistance then
-                            closestPlayer = player
+    for _, plr in pairs(game.Players:GetPlayers()) do
+        if isEnemy(plr) and plr.Character then
+            local humanoid = plr.Character:FindFirstChild("Humanoid")
+            local head = plr.Character:FindFirstChild("Head")
+            
+            if humanoid and head and humanoid.Health > 0 then
+                local screenPos, onScreen = workspace.CurrentCamera:WorldToViewportPoint(head.Position)
+                if onScreen then
+                    local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+                    if distance < shortestDistance then
+                        local raycastParams = RaycastParams.new()
+                        raycastParams.FilterDescendantsInstances = {player.Character}
+                        raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+                        local result = workspace:Raycast(workspace.CurrentCamera.CFrame.Position, (head.Position - workspace.CurrentCamera.CFrame.Position).Unit * 1000, raycastParams)
+                        if result and result.Instance:IsDescendantOf(plr.Character) then
                             shortestDistance = distance
+                            closest = head
                         end
                     end
                 end
             end
         end
     end
-    
-    return closestPlayer
+    return closest
 end
 
-local function AimAt(target)
-    local character = GetCharacter(target)
-    if not IsAlive(character) then return end
+local function getClosestEnemyMax()
+    local cam = workspace.CurrentCamera
+    local closest = nil
+    local shortestDistance = math.huge
     
-    local head = GetHead(character)
-    if not head then return end
-    
-    local targetPos = head.Position
-    local cameraPos = Camera.CFrame.Position
-    local direction = (targetPos - cameraPos).Unit
-    
-    local newCFrame = CFrame.new(cameraPos, cameraPos + direction)
-    Camera.CFrame = Camera.CFrame:Lerp(newCFrame, Config.AimbotSmooth)
-end
-
--- Auto Fire System
-local function GetTool()
-    return LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool")
-end
-
-local function FireWeapon()
-    local tool = GetTool()
-    if not tool then return end
-    
-    -- Método 1: Ativar tool
-    tool:Activate()
-    
-    -- Método 2: Simular clique (para alguns jogos)
-    local args = {[1] = "Fire"}
-    for _, v in pairs(tool:GetDescendants()) do
-        if v:IsA("RemoteEvent") then
-            v:FireServer(unpack(args))
-        elseif v:IsA("RemoteFunction") then
-            v:InvokeServer(unpack(args))
-        end
-    end
-end
-
--- Main Loop
-local currentTarget = nil
-
-RunService.RenderStepped:Connect(function()
-    -- ESP Update
-    for _, player in pairs(Players:GetPlayers()) do
-        UpdateESP(player)
-    end
-    
-    -- Aimbot
-    if Config.Aimbot then
-        if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
-            currentTarget = GetClosestEnemy()
-            if currentTarget then
-                AimAt(currentTarget)
-                
-                -- Auto Fire
-                if Config.AutoFire then
-                    FireWeapon()
+    for _, plr in pairs(game.Players:GetPlayers()) do
+        if isEnemy(plr) and plr.Character then
+            local humanoid = plr.Character:FindFirstChild("Humanoid")
+            local head = plr.Character:FindFirstChild("Head")
+            
+            if humanoid and head and humanoid.Health > 0 then
+                local screenPos, onScreen = workspace.CurrentCamera:WorldToViewportPoint(head.Position)
+                if onScreen then
+                    local raycastParams = RaycastParams.new()
+                    raycastParams.FilterDescendantsInstances = {player.Character}
+                    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+                    local result = workspace:Raycast(cam.CFrame.Position, (head.Position - cam.CFrame.Position).Unit * 1000, raycastParams)
+                    if result and result.Instance:IsDescendantOf(plr.Character) then
+                        local distance = (cam.CFrame.Position - head.Position).Magnitude
+                        if distance < shortestDistance then
+                            shortestDistance = distance
+                            closest = head
+                        end
+                    end
                 end
             end
-        else
-            currentTarget = nil
+        end
+    end
+    return closest
+end
+
+local headExpansion = 3
+
+player.CharacterAdded:Connect(function()
+    task.wait(1)
+    for _, plr in pairs(game.Players:GetPlayers()) do
+        if plr ~= player and plr.Character then
+            local head = plr.Character:FindFirstChild("Head")
+            if head then
+                head.Size = head.Size + Vector3.new(headExpansion, headExpansion, headExpansion)
+                head.Transparency = 1
+                head.CanCollide = false
+            end
         end
     end
 end)
 
--- Player Events
-Players.PlayerAdded:Connect(function(player)
-    player.CharacterAdded:Connect(function()
-        wait(0.5)
-        CreateESP(player)
+game.Players.PlayerAdded:Connect(function(plr)
+    plr.CharacterAdded:Connect(function(char)
+        task.wait(0.5)
+        if plr ~= player then
+            local head = char:FindFirstChild("Head")
+            if head then
+                head.Size = head.Size + Vector3.new(headExpansion, headExpansion, headExpansion)
+                head.Transparency = 1
+                head.CanCollide = false
+            end
+        end
     end)
 end)
 
-Players.PlayerRemoving:Connect(function(player)
-    RemoveESP(player)
-end)
-
--- Initialize ESP for existing players
-for _, player in pairs(Players:GetPlayers()) do
-    if player ~= LocalPlayer then
-        CreateESP(player)
+for _, plr in pairs(game.Players:GetPlayers()) do
+    if plr ~= player and plr.Character then
+        local head = plr.Character:FindFirstChild("Head")
+        if head then
+            head.Size = head.Size + Vector3.new(headExpansion, headExpansion, headExpansion)
+            head.Transparency = 1
+            head.CanCollide = false
+        end
     end
 end
 
-print("Universal Combat Script carregado!")
-print("Aimbot: Segure botão direito do mouse")
-print("AutoFire: Automático quando mirar")
-print("ESP: Sempre ativo")
+local function isEnemyInCrosshair()
+    local cam = workspace.CurrentCamera
+    local screenCenter = Vector2.new(cam.ViewportSize.X / 2, cam.ViewportSize.Y / 2)
+    local ray = cam:ViewportPointToRay(screenCenter.X, screenCenter.Y)
+    
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterDescendantsInstances = {player.Character}
+    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+    raycastParams.IgnoreWater = true
+    
+    local result = workspace:Raycast(ray.Origin, ray.Direction * 1000, raycastParams)
+    
+    if result and result.Instance then
+        local hitChar = result.Instance.Parent
+        local hitPlayer = game.Players:GetPlayerFromCharacter(hitChar)
+        
+        if hitPlayer and isEnemy(hitPlayer) then
+            local humanoid = hitChar:FindFirstChild("Humanoid")
+            if humanoid and humanoid.Health > 0 then
+                return true, hitPlayer
+            end
+        end
+    end
+    return false, nil
+end
+
+RunService.RenderStepped:Connect(function()
+    if maxEnabled then
+        local target = getClosestEnemyMax()
+        if target then
+            local cam = workspace.CurrentCamera
+            local targetPos = target.Position
+            cam.CFrame = CFrame.new(cam.CFrame.Position, targetPos)
+        end
+    elseif aimbotEnabled and rightMouseDown then
+        local target = getClosestEnemy()
+        if target then
+            local cam = workspace.CurrentCamera
+            local targetPos = target.Position
+            cam.CFrame = CFrame.new(cam.CFrame.Position, targetPos)
+        end
+    end
+end)
+
+local lastFireTime = 0
+local fireDelay = 0.03
+local isFiring = false
+
+RunService.Heartbeat:Connect(function()
+    local currentTime = tick()
+    
+    if (maxEnabled or autoFireEnabled) and not isFiring then
+        local hasEnemy, enemyPlayer = isEnemyInCrosshair()
+        
+        if hasEnemy and (currentTime - lastFireTime) >= fireDelay then
+            isFiring = true
+            lastFireTime = currentTime
+            
+            task.spawn(function()
+                mouse1press()
+                task.wait(0.02)
+                mouse1release()
+                task.wait(0.01)
+                isFiring = false
+            end)
+        end
+    end
+end)
+
+aimbotBtn.MouseButton1Click:Connect(function()
+    if maxEnabled then return end
+    aimbotEnabled = not aimbotEnabled
+    if aimbotEnabled then
+        aimbotIndicator.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
+    else
+        aimbotIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+    end
+end)
+
+autoFireBtn.MouseButton1Click:Connect(function()
+    if maxEnabled then return end
+    autoFireEnabled = not autoFireEnabled
+    if autoFireEnabled then
+        autoFireIndicator.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
+    else
+        autoFireIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+    end
+end)
+
+maxBtn.MouseButton1Click:Connect(function()
+    maxEnabled = not maxEnabled
+    if maxEnabled then
+        aimbotEnabled = false
+        autoFireEnabled = false
+        aimbotIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+        autoFireIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+        maxIndicator.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
+    else
+        maxIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+    end
+end)
+
+espKeyBox.FocusLost:Connect(function()
+    local text = espKeyBox.Text:upper()
+    local success, key = pcall(function() return Enum.KeyCode[text] end)
+    if success and key then
+        espKey = key
+        espKeyBox.Text = text
+    else
+        espKeyBox.Text = "J"
+        espKey = Enum.KeyCode.J
+    end
+end)
+
+aimbotKeyBox.FocusLost:Connect(function()
+    local text = aimbotKeyBox.Text:upper()
+    local success, key = pcall(function() return Enum.KeyCode[text] end)
+    if success and key then
+        aimbotKey = key
+        aimbotKeyBox.Text = text
+    else
+        aimbotKeyBox.Text = "X"
+        aimbotKey = Enum.KeyCode.X
+    end
+end)
+
+autoFireKeyBox.FocusLost:Connect(function()
+    local text = autoFireKeyBox.Text:upper()
+    local success, key = pcall(function() return Enum.KeyCode[text] end)
+    if success and key then
+        autoFireKey = key
+        autoFireKeyBox.Text = text
+    else
+        autoFireKeyBox.Text = "C"
+        autoFireKey = Enum.KeyCode.C
+    end
+end)
+
+maxKeyBox.FocusLost:Connect(function()
+    local text = maxKeyBox.Text:upper()
+    local success, key = pcall(function() return Enum.KeyCode[text] end)
+    if success and key then
+        maxKey = key
+        maxKeyBox.Text = text
+    else
+        maxKeyBox.Text = "V"
+        maxKey = Enum.KeyCode.V
+    end
+end)
+
+UIS.InputBegan:Connect(function(input, gameProcessed)
+    if input.UserInputType == Enum.UserInputType.MouseButton2 then
+        rightMouseDown = true
+        return
+    end
+    
+    if gameProcessed then return end
+    
+    if input.KeyCode == toggleKey then
+        MainFrame.Visible = not MainFrame.Visible
+    elseif input.KeyCode == espKey then
+        espEnabled = not espEnabled
+        if espEnabled then
+            enableESP()
+            espIndicator.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
+        else
+            disableESP()
+            espIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+        end
+    elseif input.KeyCode == aimbotKey then
+        if maxEnabled then return end
+        aimbotEnabled = not aimbotEnabled
+        if aimbotEnabled then
+            aimbotIndicator.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
+        else
+            aimbotIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+        end
+    elseif input.KeyCode == autoFireKey then
+        if maxEnabled then return end
+        autoFireEnabled = not autoFireEnabled
+        if autoFireEnabled then
+            autoFireIndicator.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
+        else
+            autoFireIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+        end
+    elseif input.KeyCode == maxKey then
+        maxEnabled = not maxEnabled
+        if maxEnabled then
+            aimbotEnabled = false
+            autoFireEnabled = false
+            aimbotIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+            autoFireIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+            maxIndicator.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
+        else
+            maxIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+        end
+    end
+end)
+
+UIS.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton2 then
+        rightMouseDown = false
+    end
+end)
+
+ScreenGui.Parent = game.CoreGui
+
+print("[Universal] Carregado! Z=Menu J=ESP X=Aimbot C=AutoFire V=Max | Aimbot: Segure BOTAO DIREITO")
