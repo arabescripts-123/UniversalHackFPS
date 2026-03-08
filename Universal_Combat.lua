@@ -21,7 +21,7 @@ local MainFrame = Instance.new("Frame")
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 MainFrame.Position = UDim2.new(0.02, 0, 0.3, 0)
-MainFrame.Size = UDim2.new(0, 220, 0, 290)
+MainFrame.Size = UDim2.new(0, 220, 0, 335)
 
 local UICorner = Instance.new("UICorner")
 UICorner.CornerRadius = UDim.new(0, 8)
@@ -139,6 +139,7 @@ local aimbotKey = Enum.KeyCode.X
 local autoFireKey = Enum.KeyCode.C
 local maxKey = Enum.KeyCode.V
 local noclipKey = Enum.KeyCode.N
+local perfKey = Enum.KeyCode.P
 local toggleKey = Enum.KeyCode.Z
 
 local aimbotEnabled = false
@@ -147,6 +148,7 @@ local rightMouseDown = false
 local autoFireEnabled = false
 local maxEnabled = false
 local noclipEnabled = false
+local perfEnabled = false
 
 local espEnabled = false
 local espBoxes = {}
@@ -285,6 +287,9 @@ local maxKeyBox = createKeyBox("V", UDim2.new(0, 145, 0, 185))
 
 local noclipBtn, noclipIndicator = createButton("Noclip", UDim2.new(0, 10, 0, 230))
 local noclipKeyBox = createKeyBox("N", UDim2.new(0, 145, 0, 230))
+
+local perfBtn, perfIndicator = createButton("Performance", UDim2.new(0, 10, 0, 275))
+local perfKeyBox = createKeyBox("P", UDim2.new(0, 145, 0, 275))
 
 espBtn.MouseButton1Click:Connect(function()
     espEnabled = not espEnabled
@@ -475,6 +480,51 @@ rejoinBtn.MouseButton1Click:Connect(function()
     game:GetService("TeleportService"):Teleport(game.PlaceId, player)
 end)
 
+local lighting = game:GetService("Lighting")
+local originalSettings = {}
+
+perfBtn.MouseButton1Click:Connect(function()
+    perfEnabled = not perfEnabled
+    if perfEnabled then
+        perfIndicator.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
+        
+        originalSettings.Brightness = lighting.Brightness
+        originalSettings.GlobalShadows = lighting.GlobalShadows
+        originalSettings.OutdoorAmbient = lighting.OutdoorAmbient
+        originalSettings.Ambient = lighting.Ambient
+        
+        lighting.Brightness = 2
+        lighting.GlobalShadows = false
+        lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
+        lighting.Ambient = Color3.fromRGB(128, 128, 128)
+        
+        for _, obj in pairs(lighting:GetChildren()) do
+            if obj:IsA("BloomEffect") or obj:IsA("BlurEffect") or obj:IsA("ColorCorrectionEffect") or obj:IsA("SunRaysEffect") or obj:IsA("DepthOfFieldEffect") then
+                obj.Enabled = false
+            end
+        end
+        
+        settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+        setfpscap(999)
+    else
+        perfIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+        
+        lighting.Brightness = originalSettings.Brightness or 1
+        lighting.GlobalShadows = originalSettings.GlobalShadows or true
+        lighting.OutdoorAmbient = originalSettings.OutdoorAmbient or Color3.fromRGB(70, 70, 70)
+        lighting.Ambient = originalSettings.Ambient or Color3.fromRGB(70, 70, 70)
+        
+        for _, obj in pairs(lighting:GetChildren()) do
+            if obj:IsA("BloomEffect") or obj:IsA("BlurEffect") or obj:IsA("ColorCorrectionEffect") or obj:IsA("SunRaysEffect") or obj:IsA("DepthOfFieldEffect") then
+                obj.Enabled = true
+            end
+        end
+        
+        settings().Rendering.QualityLevel = Enum.QualityLevel.Automatic
+        setfpscap(60)
+    end
+end)
+
 RunService.Stepped:Connect(function()
     if noclipEnabled and player.Character then
         for _, part in pairs(player.Character:GetDescendants()) do
@@ -545,6 +595,18 @@ noclipKeyBox.FocusLost:Connect(function()
     end
 end)
 
+perfKeyBox.FocusLost:Connect(function()
+    local text = perfKeyBox.Text:upper()
+    local success, key = pcall(function() return Enum.KeyCode[text] end)
+    if success and key then
+        perfKey = key
+        perfKeyBox.Text = text
+    else
+        perfKeyBox.Text = "P"
+        perfKey = Enum.KeyCode.P
+    end
+end)
+
 UIS.InputBegan:Connect(function(input, gameProcessed)
     if input.UserInputType == Enum.UserInputType.MouseButton2 then
         rightMouseDown = true
@@ -598,6 +660,9 @@ UIS.InputBegan:Connect(function(input, gameProcessed)
         else
             noclipIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
         end
+    elseif input.KeyCode == perfKey then
+        perfBtn:GetPropertyChangedSignal("BackgroundColor3"):Fire()
+        perfBtn.MouseButton1Click:Fire()
     end
 end)
 
@@ -609,4 +674,4 @@ end)
 
 ScreenGui.Parent = game.CoreGui
 
-print("[Universal] Carregado! Z=Menu J=ESP X=Aimbot C=AutoFire V=Max N=Noclip | Aimbot: Segure BOTAO DIREITO")
+print("[Universal] Carregado! Z=Menu J=ESP X=Aimbot C=AutoFire V=Max N=Noclip P=Performance | Aimbot: Segure BOTAO DIREITO")
