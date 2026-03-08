@@ -170,17 +170,29 @@ end
 
 local function isBotEnemy(character)
     if not isBot(character) then return false end
+    if character == player.Character then return false end
     if not player.Team then return true end
     
     local botTeam = character:FindFirstChild("Team")
     if botTeam and botTeam:IsA("StringValue") then
         return botTeam.Value ~= player.Team.Name
     end
+    
+    local bodyColors = character:FindFirstChild("Body Colors")
+    local myBodyColors = player.Character and player.Character:FindFirstChild("Body Colors")
+    if bodyColors and myBodyColors then
+        if bodyColors.HeadColor3 == myBodyColors.HeadColor3 and 
+           bodyColors.TorsoColor3 == myBodyColors.TorsoColor3 then
+            return false
+        end
+    end
+    
     return true
 end
 
 local function isEnemy(otherPlayer)
     if not otherPlayer or otherPlayer == player then return false end
+    if not player.Character or not otherPlayer.Character then return false end
     if not player.Team or not otherPlayer.Team then return true end
     if player.Team.Name == "FFA" or otherPlayer.Team.Name == "FFA" then return true end
     return otherPlayer.Team ~= player.Team
@@ -423,7 +435,7 @@ local function getClosestEnemy()
     local shortestDistance = aimbotFOV
     
     for _, plr in pairs(game.Players:GetPlayers()) do
-        if isEnemy(plr) and plr.Character then
+        if plr ~= player and isEnemy(plr) and plr.Character and plr.Character ~= player.Character then
             local humanoid = plr.Character:FindFirstChildOfClass("Humanoid")
             local head = plr.Character:FindFirstChild("Head")
             
@@ -447,7 +459,7 @@ local function getClosestEnemy()
     end
     
     for _, char in pairs(workspace:GetChildren()) do
-        if isBot(char) and isBotEnemy(char) then
+        if char ~= player.Character and isBot(char) and isBotEnemy(char) then
             local humanoid = char:FindFirstChildOfClass("Humanoid")
             local head = char:FindFirstChild("Head")
             
@@ -479,7 +491,7 @@ local function getClosestEnemyMax()
     local shortestDistance = math.huge
     
     for _, plr in pairs(game.Players:GetPlayers()) do
-        if isEnemy(plr) and plr.Character then
+        if plr ~= player and isEnemy(plr) and plr.Character and plr.Character ~= player.Character then
             local humanoid = plr.Character:FindFirstChildOfClass("Humanoid")
             local head = plr.Character:FindFirstChild("Head")
             
@@ -503,7 +515,7 @@ local function getClosestEnemyMax()
     end
     
     for _, char in pairs(workspace:GetChildren()) do
-        if isBot(char) and isBotEnemy(char) then
+        if char ~= player.Character and isBot(char) and isBotEnemy(char) then
             local humanoid = char:FindFirstChildOfClass("Humanoid")
             local head = char:FindFirstChild("Head")
             
@@ -543,16 +555,18 @@ local function isEnemyInCrosshair()
     
     if result and result.Instance then
         local hitChar = result.Instance.Parent
+        if hitChar == player.Character then return false, nil end
+        
         local hitPlayer = game.Players:GetPlayerFromCharacter(hitChar)
         
-        if hitPlayer and isEnemy(hitPlayer) then
+        if hitPlayer and hitPlayer ~= player and isEnemy(hitPlayer) then
             local humanoid = hitChar:FindFirstChildOfClass("Humanoid")
             if humanoid and humanoid.Health > 0 then
                 return true, hitPlayer
             end
         end
         
-        if isBot(hitChar) and isBotEnemy(hitChar) then
+        if hitChar ~= player.Character and isBot(hitChar) and isBotEnemy(hitChar) then
             local humanoid = hitChar:FindFirstChildOfClass("Humanoid")
             if humanoid and humanoid.Health > 0 then
                 return true, hitChar
