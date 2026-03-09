@@ -601,11 +601,10 @@ local function isEnemyInCrosshair()
     return false, nil
 end
 
-local smoothness = 0.3
-local lastTarget = nil
-
 RunService.RenderStepped:Connect(function(dt)
     pcall(function()
+        if not player.Character then return end
+        
         local cam = workspace.CurrentCamera
         local target = nil
         
@@ -615,19 +614,16 @@ RunService.RenderStepped:Connect(function(dt)
             target = getClosestEnemy()
         end
         
-        if target then
-            lastTarget = target
-            local targetPos = target.Position
-            local camPos = cam.CFrame.Position
-            local direction = (targetPos - camPos).Unit
-            
-            -- Suavização para primeira pessoa
-            local currentLook = cam.CFrame.LookVector
-            local smoothedDirection = currentLook:Lerp(direction, smoothness)
-            
-            cam.CFrame = CFrame.new(camPos, camPos + smoothedDirection)
-        else
-            lastTarget = nil
+        if target and target.Parent then
+            local humanoidRootPart = player.Character:FindFirstChild("HumanoidRootPart")
+            if humanoidRootPart then
+                -- Calcula direção do alvo
+                local targetPos = target.Position
+                local lookVector = (targetPos - cam.CFrame.Position).Unit
+                
+                -- Aplica rotação suave
+                cam.CFrame = CFrame.new(cam.CFrame.Position, cam.CFrame.Position + lookVector)
+            end
         end
     end)
 end)
