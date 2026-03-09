@@ -601,6 +601,9 @@ local function isEnemyInCrosshair()
     return false, nil
 end
 
+local smoothness = 0.3
+local lastTarget = nil
+
 RunService.RenderStepped:Connect(function(dt)
     pcall(function()
         local cam = workspace.CurrentCamera
@@ -613,7 +616,18 @@ RunService.RenderStepped:Connect(function(dt)
         end
         
         if target then
-            cam.CFrame = CFrame.new(cam.CFrame.Position, target.Position)
+            lastTarget = target
+            local targetPos = target.Position
+            local camPos = cam.CFrame.Position
+            local direction = (targetPos - camPos).Unit
+            
+            -- Suavização para primeira pessoa
+            local currentLook = cam.CFrame.LookVector
+            local smoothedDirection = currentLook:Lerp(direction, smoothness)
+            
+            cam.CFrame = CFrame.new(camPos, camPos + smoothedDirection)
+        else
+            lastTarget = nil
         end
     end)
 end)
