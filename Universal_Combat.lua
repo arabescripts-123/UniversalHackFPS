@@ -227,9 +227,20 @@ local function addESP(plr)
     if plr == player or not espEnabled then return end
     
     local function createHighlight(char)
-        if not espEnabled then return end
+        if not espEnabled or not char:FindFirstChild("Head") then return end
         
         pcall(function()
+            for _, obj in pairs(char:GetChildren()) do
+                if obj:IsA("Highlight") or obj:IsA("BillboardGui") then
+                    obj:Destroy()
+                end
+            end
+            for _, obj in pairs(char:GetDescendants()) do
+                if obj:IsA("BillboardGui") and obj.Name ~= "HealthBar" then
+                    obj:Destroy()
+                end
+            end
+            
             local head = char:FindFirstChild("Head")
             if not head then return end
             
@@ -274,8 +285,12 @@ local function addESP(plr)
     end
     
     if plr.Character then createHighlight(plr.Character) end
+    if espConnections[plr] then espConnections[plr]:Disconnect() end
     espConnections[plr] = plr.CharacterAdded:Connect(function(char)
-        if espEnabled then createHighlight(char) end
+        if espEnabled then 
+            task.wait(0.3)
+            createHighlight(char) 
+        end
     end)
 end
 
@@ -364,15 +379,32 @@ local function updateESPColors()
 end
 
 local function refreshESP()
+    for plr, boxes in pairs(espBoxes) do
+        if typeof(plr) == "Instance" and plr:IsA("Player") then
+            if not plr.Character or not plr.Character:FindFirstChild("Head") then
+                removeESP(plr)
+            end
+        elseif typeof(plr) ~= "Instance" or not plr.Parent then
+            espBoxes[plr] = nil
+        end
+    end
+    
     for _, plr in pairs(game.Players:GetPlayers()) do
-        if plr ~= player and not espBoxes[plr] and plr.Character then
-            addESP(plr)
+        if plr ~= player then
+            if plr.Character and plr.Character:FindFirstChild("Head") then
+                if not espBoxes[plr] or #espBoxes[plr] == 0 then
+                    removeESP(plr)
+                    addESP(plr)
+                end
+            end
         end
     end
     
     for _, char in pairs(workspace:GetChildren()) do
-        if isBot(char) and isBotEnemy(char) and not espBoxes[char] then
-            addBotESP(char)
+        if isBot(char) and isBotEnemy(char) then
+            if not espBoxes[char] or #espBoxes[char] == 0 then
+                addBotESP(char)
+            end
         end
     end
 end
@@ -380,18 +412,21 @@ end
 local function enableESP()
     for _, plr in pairs(game.Players:GetPlayers()) do addESP(plr) end
     espConnections.playerAdded = game.Players.PlayerAdded:Connect(function(plr)
-        if espEnabled then addESP(plr) end
+        if espEnabled then 
+            task.wait(0.5)
+            addESP(plr) 
+        end
     end)
     espConnections.playerRemoving = game.Players.PlayerRemoving:Connect(function(plr)
         removeESP(plr)
     end)
     espConnections.refresh = RunService.Heartbeat:Connect(function()
-        if espEnabled and tick() % 3 < 0.016 then
+        if espEnabled and tick() % 1.5 < 0.016 then
             refreshESP()
         end
     end)
     espConnections.colorUpdate = RunService.Heartbeat:Connect(function()
-        if espEnabled and tick() % 1 < 0.016 then
+        if espEnabled and tick() % 0.5 < 0.016 then
             updateESPColors()
         end
     end)
@@ -644,7 +679,7 @@ local function isEnemyInCrosshair()
     return false, nil
 end
 
-local smoothness = 0.2
+local smoothness = 0.5
 
 RunService.RenderStepped:Connect(function(dt)
     pcall(function()
