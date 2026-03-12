@@ -227,7 +227,6 @@ local function addESP(plr)
     if plr == player or not espEnabled then return end
     
     local function createHighlight(char)
-        task.wait(0.1)
         if not espEnabled then return end
         
         pcall(function()
@@ -236,18 +235,18 @@ local function addESP(plr)
             
             local color, isAlly
             if isEnemy(plr) then
-                color = Color3.fromRGB(255, 0, 0)
+                color = Color3.fromRGB(180, 0, 0)
                 isAlly = false
             else
-                color = Color3.fromRGB(0, 255, 0)
+                color = Color3.fromRGB(0, 200, 0)
                 isAlly = true
             end
             
             local highlight = Instance.new("Highlight")
             highlight.FillColor = color
             highlight.OutlineColor = color
-            highlight.FillTransparency = 0.7
-            highlight.OutlineTransparency = 0.2
+            highlight.FillTransparency = 0.85
+            highlight.OutlineTransparency = 0.5
             highlight.Adornee = char
             highlight.Parent = char
             
@@ -263,7 +262,7 @@ local function addESP(plr)
             nameLabel.BackgroundTransparency = 1
             nameLabel.Text = plr.Name .. (isAlly and " [ALLY]" or "")
             nameLabel.TextColor3 = color
-            nameLabel.TextStrokeTransparency = 0.5
+            nameLabel.TextStrokeTransparency = 0.3
             nameLabel.Font = Enum.Font.GothamBold
             nameLabel.TextSize = 14
             nameLabel.Parent = billboard
@@ -287,13 +286,13 @@ local function addBotESP(character)
         local head = character:FindFirstChild("Head")
         if not head then return end
         
-        local color = Color3.fromRGB(255, 165, 0)
+        local color = Color3.fromRGB(200, 130, 0)
         
         local highlight = Instance.new("Highlight")
         highlight.FillColor = color
         highlight.OutlineColor = color
-        highlight.FillTransparency = 0.7
-        highlight.OutlineTransparency = 0.2
+        highlight.FillTransparency = 0.85
+        highlight.OutlineTransparency = 0.5
         highlight.Adornee = character
         highlight.Parent = character
         
@@ -309,7 +308,7 @@ local function addBotESP(character)
         nameLabel.BackgroundTransparency = 1
         nameLabel.Text = "Bot"
         nameLabel.TextColor3 = color
-        nameLabel.TextStrokeTransparency = 0.5
+        nameLabel.TextStrokeTransparency = 0.3
         nameLabel.Font = Enum.Font.GothamBold
         nameLabel.TextSize = 14
         nameLabel.Parent = billboard
@@ -334,15 +333,37 @@ local function removeESP(plr)
     end
 end
 
-local function refreshESP()
-    for plr, _ in pairs(espBoxes) do
-        if typeof(plr) == "Instance" and plr:IsA("Player") then
-            removeESP(plr)
-            if plr.Character then
-                addESP(plr)
-            end
+local function updateESPColors()
+    for plr, boxes in pairs(espBoxes) do
+        if typeof(plr) == "Instance" and plr:IsA("Player") and plr.Character then
+            pcall(function()
+                local color, isAlly
+                if isEnemy(plr) then
+                    color = Color3.fromRGB(180, 0, 0)
+                    isAlly = false
+                else
+                    color = Color3.fromRGB(0, 200, 0)
+                    isAlly = true
+                end
+                
+                for _, obj in pairs(boxes) do
+                    if obj:IsA("Highlight") then
+                        obj.FillColor = color
+                        obj.OutlineColor = color
+                    elseif obj:IsA("BillboardGui") then
+                        local label = obj:FindFirstChildOfClass("TextLabel")
+                        if label then
+                            label.TextColor3 = color
+                            label.Text = plr.Name .. (isAlly and " [ALLY]" or "")
+                        end
+                    end
+                end
+            end)
         end
     end
+end
+
+local function refreshESP()
     for _, plr in pairs(game.Players:GetPlayers()) do
         if plr ~= player and not espBoxes[plr] and plr.Character then
             addESP(plr)
@@ -365,8 +386,13 @@ local function enableESP()
         removeESP(plr)
     end)
     espConnections.refresh = RunService.Heartbeat:Connect(function()
-        if espEnabled and tick() % 2 < 0.016 then
+        if espEnabled and tick() % 3 < 0.016 then
             refreshESP()
+        end
+    end)
+    espConnections.colorUpdate = RunService.Heartbeat:Connect(function()
+        if espEnabled and tick() % 1 < 0.016 then
+            updateESPColors()
         end
     end)
 end
@@ -384,6 +410,10 @@ local function disableESP()
     if espConnections.refresh then
         espConnections.refresh:Disconnect()
         espConnections.refresh = nil
+    end
+    if espConnections.colorUpdate then
+        espConnections.colorUpdate:Disconnect()
+        espConnections.colorUpdate = nil
     end
 end
 
@@ -614,6 +644,8 @@ local function isEnemyInCrosshair()
     return false, nil
 end
 
+local smoothness = 0.2
+
 RunService.RenderStepped:Connect(function(dt)
     pcall(function()
         if not player.Character then return end
@@ -628,15 +660,12 @@ RunService.RenderStepped:Connect(function(dt)
         end
         
         if target and target.Parent then
-            local humanoidRootPart = player.Character:FindFirstChild("HumanoidRootPart")
-            if humanoidRootPart then
-                -- Calcula direção do alvo
-                local targetPos = target.Position
-                local lookVector = (targetPos - cam.CFrame.Position).Unit
-                
-                -- Aplica rotação suave
-                cam.CFrame = CFrame.new(cam.CFrame.Position, cam.CFrame.Position + lookVector)
-            end
+            local targetPos = target.Position
+            local currentLook = cam.CFrame.LookVector
+            local targetLook = (targetPos - cam.CFrame.Position).Unit
+            
+            local newLook = currentLook:Lerp(targetLook, smoothness)
+            cam.CFrame = CFrame.new(cam.CFrame.Position, cam.CFrame.Position + newLook)
         end
     end)
 end)
