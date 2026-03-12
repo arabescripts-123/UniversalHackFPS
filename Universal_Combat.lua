@@ -210,16 +210,12 @@ local function isEnemy(otherPlayer)
     if not otherPlayer or otherPlayer == player then return false end
     if not player.Character or not otherPlayer.Character then return false end
     
-    -- Se não tem time, considera inimigo
     if not player.Team or not otherPlayer.Team then return true end
     
-    -- FFA sempre inimigo
     if player.Team.Name == "FFA" or otherPlayer.Team.Name == "FFA" then return true end
     
-    -- Verifica se são times diferentes
     if player.Team ~= otherPlayer.Team then return true end
     
-    -- Mesmo time = aliado
     return false
 end
 
@@ -231,13 +227,17 @@ local function addESP(plr)
         
         pcall(function()
             for _, obj in pairs(char:GetChildren()) do
-                if obj:IsA("Highlight") or obj:IsA("BillboardGui") then
+                if obj:IsA("Highlight") then
                     obj:Destroy()
                 end
             end
-            for _, obj in pairs(char:GetDescendants()) do
-                if obj:IsA("BillboardGui") and obj.Name ~= "HealthBar" then
-                    obj:Destroy()
+            for _, part in pairs(char:GetChildren()) do
+                if part:IsA("BasePart") then
+                    for _, obj in pairs(part:GetChildren()) do
+                        if obj:IsA("BillboardGui") and obj.Name ~= "HealthBar" then
+                            obj:Destroy()
+                        end
+                    end
                 end
             end
             
@@ -527,56 +527,51 @@ local function getClosestEnemy()
     local closest = nil
     local shortestDistance = aimbotFOV
     
-    local function checkTarget(char)
-        local humanoid = char:FindFirstChildOfClass("Humanoid")
-        if not humanoid or humanoid.Health <= 0 then return end
-        
-        local head = char:FindFirstChild("Head")
-        local raycastParams = RaycastParams.new()
-        raycastParams.FilterDescendantsInstances = {player.Character}
-        raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-        
-        local targetPart = nil
-        if head then
-            local result = workspace:Raycast(workspace.CurrentCamera.CFrame.Position, (head.Position - workspace.CurrentCamera.CFrame.Position).Unit * 1000, raycastParams)
-            if result and result.Instance:IsDescendantOf(char) then
-                targetPart = head
-            end
-        end
-        
-        if not targetPart then
-            for _, part in pairs(char:GetChildren()) do
-                if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
-                    local result = workspace:Raycast(workspace.CurrentCamera.CFrame.Position, (part.Position - workspace.CurrentCamera.CFrame.Position).Unit * 1000, raycastParams)
-                    if result and result.Instance:IsDescendantOf(char) then
-                        targetPart = part
-                        break
+    for _, plr in pairs(game.Players:GetPlayers()) do
+        if plr ~= player and isEnemy(plr) and plr.Character and plr.Character ~= player.Character then
+            local humanoid = plr.Character:FindFirstChildOfClass("Humanoid")
+            local head = plr.Character:FindFirstChild("Head")
+            
+            if humanoid and head and humanoid.Health > 0 then
+                local screenPos, onScreen = workspace.CurrentCamera:WorldToViewportPoint(head.Position)
+                if onScreen then
+                    local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+                    if distance < shortestDistance then
+                        local raycastParams = RaycastParams.new()
+                        raycastParams.FilterDescendantsInstances = {player.Character}
+                        raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+                        local result = workspace:Raycast(workspace.CurrentCamera.CFrame.Position, (head.Position - workspace.CurrentCamera.CFrame.Position).Unit * 1000, raycastParams)
+                        if result and result.Instance:IsDescendantOf(plr.Character) then
+                            shortestDistance = distance
+                            closest = head
+                        end
                     end
                 end
             end
-        end
-        
-        if targetPart then
-            local screenPos, onScreen = workspace.CurrentCamera:WorldToViewportPoint(targetPart.Position)
-            if onScreen then
-                local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
-                if distance < shortestDistance then
-                    shortestDistance = distance
-                    closest = targetPart
-                end
-            end
-        end
-    end
-    
-    for _, plr in pairs(game.Players:GetPlayers()) do
-        if plr ~= player and isEnemy(plr) and plr.Character then
-            checkTarget(plr.Character)
         end
     end
     
     for _, char in pairs(workspace:GetChildren()) do
         if char ~= player.Character and isBot(char) and isBotEnemy(char) then
-            checkTarget(char)
+            local humanoid = char:FindFirstChildOfClass("Humanoid")
+            local head = char:FindFirstChild("Head")
+            
+            if humanoid and head and humanoid.Health > 0 then
+                local screenPos, onScreen = workspace.CurrentCamera:WorldToViewportPoint(head.Position)
+                if onScreen then
+                    local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+                    if distance < shortestDistance then
+                        local raycastParams = RaycastParams.new()
+                        raycastParams.FilterDescendantsInstances = {player.Character}
+                        raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+                        local result = workspace:Raycast(workspace.CurrentCamera.CFrame.Position, (head.Position - workspace.CurrentCamera.CFrame.Position).Unit * 1000, raycastParams)
+                        if result and result.Instance:IsDescendantOf(char) then
+                            shortestDistance = distance
+                            closest = head
+                        end
+                    end
+                end
+            end
         end
     end
     
@@ -588,56 +583,51 @@ local function getClosestEnemyMax()
     local closest = nil
     local shortestDistance = math.huge
     
-    local function checkTarget(char)
-        local humanoid = char:FindFirstChildOfClass("Humanoid")
-        if not humanoid or humanoid.Health <= 0 then return end
-        
-        local head = char:FindFirstChild("Head")
-        local raycastParams = RaycastParams.new()
-        raycastParams.FilterDescendantsInstances = {player.Character}
-        raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-        
-        local targetPart = nil
-        if head then
-            local result = workspace:Raycast(cam.CFrame.Position, (head.Position - cam.CFrame.Position).Unit * 1000, raycastParams)
-            if result and result.Instance:IsDescendantOf(char) then
-                targetPart = head
-            end
-        end
-        
-        if not targetPart then
-            for _, part in pairs(char:GetChildren()) do
-                if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
-                    local result = workspace:Raycast(cam.CFrame.Position, (part.Position - cam.CFrame.Position).Unit * 1000, raycastParams)
-                    if result and result.Instance:IsDescendantOf(char) then
-                        targetPart = part
-                        break
+    for _, plr in pairs(game.Players:GetPlayers()) do
+        if plr ~= player and isEnemy(plr) and plr.Character and plr.Character ~= player.Character then
+            local humanoid = plr.Character:FindFirstChildOfClass("Humanoid")
+            local head = plr.Character:FindFirstChild("Head")
+            
+            if humanoid and head and humanoid.Health > 0 then
+                local screenPos, onScreen = workspace.CurrentCamera:WorldToViewportPoint(head.Position)
+                if onScreen then
+                    local raycastParams = RaycastParams.new()
+                    raycastParams.FilterDescendantsInstances = {player.Character}
+                    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+                    local result = workspace:Raycast(cam.CFrame.Position, (head.Position - cam.CFrame.Position).Unit * 1000, raycastParams)
+                    if result and result.Instance:IsDescendantOf(plr.Character) then
+                        local distance = (cam.CFrame.Position - head.Position).Magnitude
+                        if distance < shortestDistance then
+                            shortestDistance = distance
+                            closest = head
+                        end
                     end
                 end
             end
-        end
-        
-        if targetPart then
-            local screenPos, onScreen = cam:WorldToViewportPoint(targetPart.Position)
-            if onScreen then
-                local distance = (cam.CFrame.Position - targetPart.Position).Magnitude
-                if distance < shortestDistance then
-                    shortestDistance = distance
-                    closest = targetPart
-                end
-            end
-        end
-    end
-    
-    for _, plr in pairs(game.Players:GetPlayers()) do
-        if plr ~= player and isEnemy(plr) and plr.Character then
-            checkTarget(plr.Character)
         end
     end
     
     for _, char in pairs(workspace:GetChildren()) do
         if char ~= player.Character and isBot(char) and isBotEnemy(char) then
-            checkTarget(char)
+            local humanoid = char:FindFirstChildOfClass("Humanoid")
+            local head = char:FindFirstChild("Head")
+            
+            if humanoid and head and humanoid.Health > 0 then
+                local screenPos, onScreen = workspace.CurrentCamera:WorldToViewportPoint(head.Position)
+                if onScreen then
+                    local raycastParams = RaycastParams.new()
+                    raycastParams.FilterDescendantsInstances = {player.Character}
+                    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+                    local result = workspace:Raycast(cam.CFrame.Position, (head.Position - cam.CFrame.Position).Unit * 1000, raycastParams)
+                    if result and result.Instance:IsDescendantOf(char) then
+                        local distance = (cam.CFrame.Position - head.Position).Magnitude
+                        if distance < shortestDistance then
+                            shortestDistance = distance
+                            closest = head
+                        end
+                    end
+                end
+            end
         end
     end
     
@@ -694,10 +684,19 @@ RunService.RenderStepped:Connect(function(dt)
         
         if target and target.Parent then
             local humanoidRootPart = player.Character:FindFirstChild("HumanoidRootPart")
-            if humanoidRootPart then
+            local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+            
+            if humanoidRootPart and humanoid then
                 local targetPos = target.Position
                 local lookVector = (targetPos - cam.CFrame.Position).Unit
+                
                 cam.CFrame = CFrame.new(cam.CFrame.Position, cam.CFrame.Position + lookVector)
+                
+                if humanoid.AutoRotate == true then
+                    local rootPos = humanoidRootPart.Position
+                    local targetDirection = Vector3.new(targetPos.X, rootPos.Y, targetPos.Z)
+                    humanoidRootPart.CFrame = CFrame.new(rootPos, targetDirection)
+                end
             end
         end
     end)
