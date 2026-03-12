@@ -679,8 +679,6 @@ local function isEnemyInCrosshair()
     return false, nil
 end
 
-local smoothness = 0.5
-
 RunService.RenderStepped:Connect(function(dt)
     pcall(function()
         if not player.Character then return end
@@ -695,12 +693,12 @@ RunService.RenderStepped:Connect(function(dt)
         end
         
         if target and target.Parent then
-            local targetPos = target.Position
-            local currentLook = cam.CFrame.LookVector
-            local targetLook = (targetPos - cam.CFrame.Position).Unit
-            
-            local newLook = currentLook:Lerp(targetLook, smoothness)
-            cam.CFrame = CFrame.new(cam.CFrame.Position, cam.CFrame.Position + newLook)
+            local humanoidRootPart = player.Character:FindFirstChild("HumanoidRootPart")
+            if humanoidRootPart then
+                local targetPos = target.Position
+                local lookVector = (targetPos - cam.CFrame.Position).Unit
+                cam.CFrame = CFrame.new(cam.CFrame.Position, cam.CFrame.Position + lookVector)
+            end
         end
     end)
 end)
