@@ -34,48 +34,66 @@ ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Parent = ScreenGui
-MainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
 MainFrame.Position = UDim2.new(0.02, 0, 0.3, 0)
-MainFrame.Size = UDim2.new(0, 220, 0, 335)
+MainFrame.Size = UDim2.new(0, 240, 0, 360)
+MainFrame.BackgroundTransparency = 0.05
 
 local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim.new(0, 8)
+UICorner.CornerRadius = UDim.new(0, 12)
 UICorner.Parent = MainFrame
 
 local UIStroke = Instance.new("UIStroke")
 UIStroke.Parent = MainFrame
-UIStroke.Color = Color3.fromRGB(0, 0, 0)
-UIStroke.Thickness = 3
+UIStroke.Color = Color3.fromRGB(90, 50, 180)
+UIStroke.Thickness = 1.5
+UIStroke.Transparency = 0.3
+
+local TitleBar = Instance.new("Frame")
+TitleBar.Parent = MainFrame
+TitleBar.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+TitleBar.Size = UDim2.new(1, 0, 0, 42)
+TitleBar.BorderSizePixel = 0
+local TitleBarCorner = Instance.new("UICorner")
+TitleBarCorner.CornerRadius = UDim.new(0, 12)
+TitleBarCorner.Parent = TitleBar
+
+local TitleBarFix = Instance.new("Frame")
+TitleBarFix.Parent = TitleBar
+TitleBarFix.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+TitleBarFix.Size = UDim2.new(1, 0, 0, 14)
+TitleBarFix.Position = UDim2.new(0, 0, 1, -14)
+TitleBarFix.BorderSizePixel = 0
 
 local Title = Instance.new("TextLabel")
-Title.Parent = MainFrame
+Title.Parent = TitleBar
 Title.BackgroundTransparency = 1
-Title.Size = UDim2.new(1, -40, 0, 40)
+Title.Size = UDim2.new(1, -45, 1, 0)
 Title.Font = Enum.Font.GothamBold
-Title.Text = "Universal Script"
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.TextSize = 18
+Title.Text = "⚔ Universal"
+Title.TextColor3 = Color3.fromRGB(180, 140, 255)
+Title.TextSize = 16
 Title.TextXAlignment = Enum.TextXAlignment.Left
-Title.Position = UDim2.new(0, 10, 0, 0)
+Title.Position = UDim2.new(0, 12, 0, 0)
 Title.Active = true
 
 local rejoinBtn = Instance.new("TextButton")
-rejoinBtn.Parent = MainFrame
-rejoinBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
-rejoinBtn.Position = UDim2.new(1, -35, 0, 5)
+rejoinBtn.Parent = TitleBar
+rejoinBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+rejoinBtn.Position = UDim2.new(1, -36, 0, 6)
 rejoinBtn.Size = UDim2.new(0, 30, 0, 30)
 rejoinBtn.Font = Enum.Font.GothamBold
 rejoinBtn.Text = "R"
 rejoinBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-rejoinBtn.TextSize = 14
+rejoinBtn.TextSize = 13
 
 local rejoinCorner = Instance.new("UICorner")
-rejoinCorner.CornerRadius = UDim.new(0, 6)
+rejoinCorner.CornerRadius = UDim.new(0, 8)
 rejoinCorner.Parent = rejoinBtn
 
 local dragging, dragInput, dragStart, startPos
 
-Title.InputBegan:Connect(function(input)
+TitleBar.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
         dragging = true
         dragStart = input.Position
@@ -88,7 +106,7 @@ Title.InputBegan:Connect(function(input)
     end
 end)
 
-Title.InputChanged:Connect(function(input)
+TitleBar.InputChanged:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseMovement then
         dragInput = input
     end
@@ -106,27 +124,41 @@ local function createButton(text, position)
     local BtnCorner = Instance.new("UICorner")
     local Indicator = Instance.new("Frame")
     local IndicatorCorner = Instance.new("UICorner")
+    local IndicatorStroke = Instance.new("UIStroke")
     
     Button.Parent = MainFrame
-    Button.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+    Button.BackgroundColor3 = Color3.fromRGB(30, 30, 42)
     Button.Position = position
-    Button.Size = UDim2.new(0, 130, 0, 35)
-    Button.Font = Enum.Font.Gotham
-    Button.Text = text
-    Button.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Button.TextSize = 13
+    Button.Size = UDim2.new(0, 145, 0, 32)
+    Button.Font = Enum.Font.GothamSemibold
+    Button.Text = "  " .. text
+    Button.TextColor3 = Color3.fromRGB(210, 210, 220)
+    Button.TextSize = 12
+    Button.TextXAlignment = Enum.TextXAlignment.Left
+    Button.AutoButtonColor = false
     
-    BtnCorner.CornerRadius = UDim.new(0, 6)
+    BtnCorner.CornerRadius = UDim.new(0, 8)
     BtnCorner.Parent = Button
     
+    local BtnStroke = Instance.new("UIStroke")
+    BtnStroke.Parent = Button
+    BtnStroke.Color = Color3.fromRGB(50, 50, 70)
+    BtnStroke.Thickness = 1
+    BtnStroke.Transparency = 0.5
+    
     Indicator.Parent = Button
-    Indicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-    Indicator.Position = UDim2.new(1, -25, 0.5, -8)
-    Indicator.Size = UDim2.new(0, 16, 0, 16)
+    Indicator.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
+    Indicator.Position = UDim2.new(1, -24, 0.5, -6)
+    Indicator.Size = UDim2.new(0, 12, 0, 12)
     Indicator.BorderSizePixel = 0
     
     IndicatorCorner.CornerRadius = UDim.new(1, 0)
     IndicatorCorner.Parent = Indicator
+    
+    IndicatorStroke.Parent = Indicator
+    IndicatorStroke.Color = Color3.fromRGB(255, 255, 255)
+    IndicatorStroke.Thickness = 1
+    IndicatorStroke.Transparency = 0.7
     
     return Button, Indicator
 end
@@ -134,18 +166,26 @@ end
 local function createKeyBox(text, position)
     local Box = Instance.new("TextBox")
     Box.Parent = MainFrame
-    Box.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    Box.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
     Box.Position = position
-    Box.Size = UDim2.new(0, 35, 0, 35)
-    Box.Font = Enum.Font.Gotham
+    Box.Size = UDim2.new(0, 38, 0, 32)
+    Box.Font = Enum.Font.GothamBold
     Box.Text = text
-    Box.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Box.TextSize = 10
+    Box.TextColor3 = Color3.fromRGB(180, 140, 255)
+    Box.TextSize = 11
     Box.ClearTextOnFocus = false
+    Box.PlaceholderColor3 = Color3.fromRGB(100, 100, 120)
     
     local Corner = Instance.new("UICorner")
-    Corner.CornerRadius = UDim.new(0, 6)
+    Corner.CornerRadius = UDim.new(0, 8)
     Corner.Parent = Box
+    
+    local Stroke = Instance.new("UIStroke")
+    Stroke.Parent = Box
+    Stroke.Color = Color3.fromRGB(60, 50, 100)
+    Stroke.Thickness = 1
+    Stroke.Transparency = 0.5
+    
     return Box
 end
 
@@ -452,72 +492,74 @@ local function disableESP()
     end
 end
 
-local espBtn, espIndicator = createButton("ESP", UDim2.new(0, 10, 0, 50))
-local espKeyBox = createKeyBox("J", UDim2.new(0, 145, 0, 50))
+local espBtn, espIndicator = createButton("ESP", UDim2.new(0, 12, 0, 52))
+local espKeyBox = createKeyBox("J", UDim2.new(0, 162, 0, 52))
 
-local aimbotBtn, aimbotIndicator = createButton("Aimbot", UDim2.new(0, 10, 0, 95))
-local aimbotKeyBox = createKeyBox("X", UDim2.new(0, 145, 0, 95))
+local aimbotBtn, aimbotIndicator = createButton("Aimbot", UDim2.new(0, 12, 0, 92))
+local aimbotKeyBox = createKeyBox("X", UDim2.new(0, 162, 0, 92))
 
-local autoFireBtn, autoFireIndicator = createButton("Auto Fire", UDim2.new(0, 10, 0, 140))
-local autoFireKeyBox = createKeyBox("C", UDim2.new(0, 145, 0, 140))
+local autoFireBtn, autoFireIndicator = createButton("Auto Fire", UDim2.new(0, 12, 0, 132))
+local autoFireKeyBox = createKeyBox("C", UDim2.new(0, 162, 0, 132))
 
-local maxBtn, maxIndicator = createButton("Max", UDim2.new(0, 10, 0, 185))
-local maxKeyBox = createKeyBox("V", UDim2.new(0, 145, 0, 185))
+local maxBtn, maxIndicator = createButton("Max", UDim2.new(0, 12, 0, 172))
+local maxKeyBox = createKeyBox("V", UDim2.new(0, 162, 0, 172))
 
 local maxModeLabel = Instance.new("TextLabel")
 maxModeLabel.Parent = MainFrame
 maxModeLabel.BackgroundTransparency = 1
-maxModeLabel.Position = UDim2.new(0, 10, 0, 225)
-maxModeLabel.Size = UDim2.new(0, 60, 0, 20)
-maxModeLabel.Font = Enum.Font.Gotham
+maxModeLabel.Position = UDim2.new(0, 12, 0, 210)
+maxModeLabel.Size = UDim2.new(0, 45, 0, 22)
+maxModeLabel.Font = Enum.Font.GothamSemibold
 maxModeLabel.Text = "Mode:"
-maxModeLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+maxModeLabel.TextColor3 = Color3.fromRGB(140, 140, 160)
 maxModeLabel.TextSize = 11
 maxModeLabel.TextXAlignment = Enum.TextXAlignment.Left
 
 local maxFastBtn = Instance.new("TextButton")
 maxFastBtn.Parent = MainFrame
-maxFastBtn.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
-maxFastBtn.Position = UDim2.new(0, 55, 0, 225)
-maxFastBtn.Size = UDim2.new(0, 60, 0, 20)
-maxFastBtn.Font = Enum.Font.Gotham
+maxFastBtn.BackgroundColor3 = Color3.fromRGB(60, 180, 80)
+maxFastBtn.Position = UDim2.new(0, 58, 0, 210)
+maxFastBtn.Size = UDim2.new(0, 65, 0, 22)
+maxFastBtn.Font = Enum.Font.GothamSemibold
 maxFastBtn.Text = "Fast"
 maxFastBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-maxFastBtn.TextSize = 10
+maxFastBtn.TextSize = 11
 maxFastBtn.BorderSizePixel = 0
+maxFastBtn.AutoButtonColor = false
 
 local maxFastCorner = Instance.new("UICorner")
-maxFastCorner.CornerRadius = UDim.new(0, 4)
+maxFastCorner.CornerRadius = UDim.new(0, 6)
 maxFastCorner.Parent = maxFastBtn
 
 local maxSlowBtn = Instance.new("TextButton")
 maxSlowBtn.Parent = MainFrame
-maxSlowBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-maxSlowBtn.Position = UDim2.new(0, 120, 0, 225)
-maxSlowBtn.Size = UDim2.new(0, 60, 0, 20)
-maxSlowBtn.Font = Enum.Font.Gotham
+maxSlowBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
+maxSlowBtn.Position = UDim2.new(0, 128, 0, 210)
+maxSlowBtn.Size = UDim2.new(0, 65, 0, 22)
+maxSlowBtn.Font = Enum.Font.GothamSemibold
 maxSlowBtn.Text = "Slow"
 maxSlowBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-maxSlowBtn.TextSize = 10
+maxSlowBtn.TextSize = 11
 maxSlowBtn.BorderSizePixel = 0
+maxSlowBtn.AutoButtonColor = false
 
 local maxSlowCorner = Instance.new("UICorner")
-maxSlowCorner.CornerRadius = UDim.new(0, 4)
+maxSlowCorner.CornerRadius = UDim.new(0, 6)
 maxSlowCorner.Parent = maxSlowBtn
 
-local noclipBtn, noclipIndicator = createButton("Noclip", UDim2.new(0, 10, 0, 255))
-local noclipKeyBox = createKeyBox("N", UDim2.new(0, 145, 0, 255))
+local noclipBtn, noclipIndicator = createButton("Noclip", UDim2.new(0, 12, 0, 242))
+local noclipKeyBox = createKeyBox("N", UDim2.new(0, 162, 0, 242))
 
-local perfBtn, perfIndicator = createButton("Performance", UDim2.new(0, 10, 0, 300))
+local perfBtn, perfIndicator = createButton("Performance", UDim2.new(0, 12, 0, 282))
 
 espBtn.MouseButton1Click:Connect(function()
     espEnabled = not espEnabled
     if espEnabled then
         enableESP()
-        espIndicator.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
+        espIndicator.BackgroundColor3 = Color3.fromRGB(80, 255, 80)
     else
         disableESP()
-        espIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+        espIndicator.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
     end
 end)
 
@@ -745,9 +787,9 @@ aimbotBtn.MouseButton1Click:Connect(function()
     if maxEnabled then return end
     aimbotEnabled = not aimbotEnabled
     if aimbotEnabled then
-        aimbotIndicator.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
+        aimbotIndicator.BackgroundColor3 = Color3.fromRGB(80, 255, 80)
     else
-        aimbotIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+        aimbotIndicator.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
     end
 end)
 
@@ -755,9 +797,9 @@ autoFireBtn.MouseButton1Click:Connect(function()
     if maxEnabled then return end
     autoFireEnabled = not autoFireEnabled
     if autoFireEnabled then
-        autoFireIndicator.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
+        autoFireIndicator.BackgroundColor3 = Color3.fromRGB(80, 255, 80)
     else
-        autoFireIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+        autoFireIndicator.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
     end
 end)
 
@@ -766,32 +808,32 @@ maxBtn.MouseButton1Click:Connect(function()
     if maxEnabled then
         aimbotEnabled = false
         autoFireEnabled = false
-        aimbotIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-        autoFireIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-        maxIndicator.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
+        aimbotIndicator.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
+        autoFireIndicator.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
+        maxIndicator.BackgroundColor3 = Color3.fromRGB(80, 255, 80)
     else
-        maxIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+        maxIndicator.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
     end
 end)
 
 maxFastBtn.MouseButton1Click:Connect(function()
     maxSlowMode = false
-    maxFastBtn.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
-    maxSlowBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    maxFastBtn.BackgroundColor3 = Color3.fromRGB(60, 180, 80)
+    maxSlowBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
 end)
 
 maxSlowBtn.MouseButton1Click:Connect(function()
     maxSlowMode = true
-    maxFastBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-    maxSlowBtn.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
+    maxFastBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
+    maxSlowBtn.BackgroundColor3 = Color3.fromRGB(60, 180, 80)
 end)
 
 noclipBtn.MouseButton1Click:Connect(function()
     noclipEnabled = not noclipEnabled
     if noclipEnabled then
-        noclipIndicator.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
+        noclipIndicator.BackgroundColor3 = Color3.fromRGB(80, 255, 80)
     else
-        noclipIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+        noclipIndicator.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
     end
 end)
 
@@ -807,7 +849,7 @@ perfBtn.MouseButton1Click:Connect(function()
     perfEnabled = not perfEnabled
     pcall(function()
         if perfEnabled then
-            perfIndicator.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
+            perfIndicator.BackgroundColor3 = Color3.fromRGB(80, 255, 80)
             
             originalSettings.Brightness = lighting.Brightness
             originalSettings.GlobalShadows = lighting.GlobalShadows
@@ -846,7 +888,7 @@ perfBtn.MouseButton1Click:Connect(function()
             
             if setfpscap then setfpscap(999) end
         else
-            perfIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+            perfIndicator.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
             
             lighting.Brightness = originalSettings.Brightness or 1
             lighting.GlobalShadows = originalSettings.GlobalShadows or true
@@ -973,44 +1015,44 @@ UIS.InputBegan:Connect(function(input, gameProcessed)
         espEnabled = not espEnabled
         if espEnabled then
             enableESP()
-            espIndicator.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
+            espIndicator.BackgroundColor3 = Color3.fromRGB(80, 255, 80)
         else
             disableESP()
-            espIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+            espIndicator.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
         end
     elseif input.KeyCode == aimbotKey then
         if maxEnabled then return end
         aimbotEnabled = not aimbotEnabled
         if aimbotEnabled then
-            aimbotIndicator.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
+            aimbotIndicator.BackgroundColor3 = Color3.fromRGB(80, 255, 80)
         else
-            aimbotIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+            aimbotIndicator.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
         end
     elseif input.KeyCode == autoFireKey then
         if maxEnabled then return end
         autoFireEnabled = not autoFireEnabled
         if autoFireEnabled then
-            autoFireIndicator.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
+            autoFireIndicator.BackgroundColor3 = Color3.fromRGB(80, 255, 80)
         else
-            autoFireIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+            autoFireIndicator.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
         end
     elseif input.KeyCode == maxKey then
         maxEnabled = not maxEnabled
         if maxEnabled then
             aimbotEnabled = false
             autoFireEnabled = false
-            aimbotIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-            autoFireIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-            maxIndicator.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
+            aimbotIndicator.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
+            autoFireIndicator.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
+            maxIndicator.BackgroundColor3 = Color3.fromRGB(80, 255, 80)
         else
-            maxIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+            maxIndicator.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
         end
     elseif input.KeyCode == noclipKey then
         noclipEnabled = not noclipEnabled
         if noclipEnabled then
-            noclipIndicator.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
+            noclipIndicator.BackgroundColor3 = Color3.fromRGB(80, 255, 80)
         else
-            noclipIndicator.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+            noclipIndicator.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
         end
     end
 end)
