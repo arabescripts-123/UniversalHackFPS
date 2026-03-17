@@ -210,6 +210,11 @@ local espBoxes = {}
 local espConnections = {}
 local botCharacters = {}
 
+local confirmedEnemies = {}
+local confirmedAllies = {}
+local lastHealth = nil
+local damageTracker = nil
+
 local function isBot(character)
     if not character then return false end
     local plr = game.Players:GetPlayerFromCharacter(character)
@@ -250,14 +255,66 @@ local function isEnemy(otherPlayer)
     if not otherPlayer or otherPlayer == player then return false end
     if not player.Character or not otherPlayer.Character then return false end
     
-    if not player.Team or not otherPlayer.Team then return true end
+    if confirmedAllies[otherPlayer] then return false end
+    if confirmedEnemies[otherPlayer] then return true end
     
-    if player.Team.Name == "FFA" or otherPlayer.Team.Name == "FFA" then return true end
-    
-    if player.Team ~= otherPlayer.Team then return true end
+    if player.Team and otherPlayer.Team then
+        if player.Team.Name == "FFA" or otherPlayer.Team.Name == "FFA" then return true end
+        if player.Team == otherPlayer.Team then return false end
+        if player.Team.TeamColor == otherPlayer.Team.TeamColor then return false end
+        return true
+    end
     
     return false
 end
+
+local function trackDamage()
+    if damageTracker then damageTracker:Disconnect() end
+    
+    local function setupHealthTracker()
+        if not player.Character then return end
+        local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+        if not humanoid then return end
+        lastHealth = humanoid.Health
+        
+        if damageTracker then damageTracker:Disconnect() end
+        damageTracker = humanoid.HealthChanged:Connect(function(newHealth)
+            if newHealth < (lastHealth or 100) then
+                local myPos = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+                if myPos then
+                    local closestDist = 50
+                    local closestPlr = nil
+                    for _, plr in pairs(game.Players:GetPlayers()) do
+                        if plr ~= player and plr.Character then
+                            local hrp = plr.Character:FindFirstChild("HumanoidRootPart")
+                            if hrp then
+                                local dist = (hrp.Position - myPos.Position).Magnitude
+                                if dist < closestDist then
+                                    closestDist = dist
+                                    closestPlr = plr
+                                end
+                            end
+                        end
+                    end
+                    if closestPlr and not confirmedAllies[closestPlr] then
+                        confirmedEnemies[closestPlr] = true
+                    end
+                end
+            end
+            lastHealth = newHealth
+        end)
+    end
+    
+    setupHealthTracker()
+    player.CharacterAdded:Connect(function(char)
+        task.wait(0.5)
+        confirmedEnemies = {}
+        confirmedAllies = {}
+        setupHealthTracker()
+    end)
+end
+
+trackDamage()
 
 local function addESP(plr)
     if plr == player or not espEnabled then return end
