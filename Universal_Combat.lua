@@ -36,7 +36,7 @@ local MainFrame = Instance.new("Frame")
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
 MainFrame.Position = UDim2.new(0.02, 0, 0.3, 0)
-MainFrame.Size = UDim2.new(0, 240, 0, 360)
+MainFrame.Size = UDim2.new(0, 240, 0, 400)
 MainFrame.BackgroundTransparency = 0.05
 
 local UICorner = Instance.new("UICorner")
@@ -255,17 +255,27 @@ local function isEnemy(otherPlayer)
     if not otherPlayer or otherPlayer == player then return false end
     if not player.Character or not otherPlayer.Character then return false end
     
-    if confirmedAllies[otherPlayer] then return false end
     if confirmedEnemies[otherPlayer] then return true end
+    if confirmedAllies[otherPlayer] then return false end
     
-    if player.Team and otherPlayer.Team then
-        if player.Team.Name == "FFA" or otherPlayer.Team.Name == "FFA" then return true end
-        if player.Team == otherPlayer.Team then return false end
-        if player.Team.TeamColor == otherPlayer.Team.TeamColor then return false end
-        return true
+    -- Sem time = FFA, todos sao inimigos
+    if not player.Team and not otherPlayer.Team then return true end
+    if not player.Team or not otherPlayer.Team then return true end
+    
+    -- FFA explicito
+    if player.Team.Name == "FFA" or otherPlayer.Team.Name == "FFA" then return true end
+    
+    -- Mesmo time/cor = aliado
+    if player.Team == otherPlayer.Team then return false end
+    if player.Team.TeamColor == otherPlayer.Team.TeamColor then return false end
+    
+    -- Neutral team = tratar como inimigo
+    local neutralNames = {"Neutral", "Lobby", "Spectator", "Spectators", "Waiting"}
+    for _, name in ipairs(neutralNames) do
+        if player.Team.Name == name or otherPlayer.Team.Name == name then return true end
     end
     
-    return false
+    return true
 end
 
 local function trackDamage()
@@ -608,6 +618,7 @@ local noclipBtn, noclipIndicator = createButton("Noclip", UDim2.new(0, 12, 0, 24
 local noclipKeyBox = createKeyBox("N", UDim2.new(0, 162, 0, 242))
 
 local perfBtn, perfIndicator = createButton("Performance", UDim2.new(0, 12, 0, 282))
+local ultraBtn, ultraIndicator = createButton("Ultra GFX", UDim2.new(0, 12, 0, 322))
 
 espBtn.MouseButton1Click:Connect(function()
     espEnabled = not espEnabled
@@ -736,35 +747,52 @@ end
 local function isEnemyInCrosshair()
     local cam = workspace.CurrentCamera
     local screenCenter = Vector2.new(cam.ViewportSize.X / 2, cam.ViewportSize.Y / 2)
-    local ray = cam:ViewportPointToRay(screenCenter.X, screenCenter.Y)
     
     local raycastParams = RaycastParams.new()
     raycastParams.FilterDescendantsInstances = {player.Character}
     raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
     raycastParams.IgnoreWater = true
     
+    -- Raio central
+    local ray = cam:ViewportPointToRay(screenCenter.X, screenCenter.Y)
     local result = workspace:Raycast(ray.Origin, ray.Direction * 1000, raycastParams)
     
-    if result and result.Instance then
-        local hitChar = result.Instance.Parent
-        if hitChar == player.Character then return false, nil end
-        
-        local hitPlayer = game.Players:GetPlayerFromCharacter(hitChar)
-        
-        if hitPlayer and hitPlayer ~= player and isEnemy(hitPlayer) then
-            local humanoid = hitChar:FindFirstChildOfClass("Humanoid")
-            if humanoid and humanoid.Health > 0 then
-                return true, hitPlayer
-            end
+    local function checkHit(res)
+        if not res or not res.Instance then return false, nil end
+        local hitChar = res.Instance.Parent
+        if not hitChar or hitChar == player.Character then return false, nil end
+        -- Checa se o parent do parent e o character (acessorios)
+        if not hitChar:FindFirstChildOfClass("Humanoid") then
+            hitChar = hitChar.Parent
+            if not hitChar or not hitChar:FindFirstChildOfClass("Humanoid") then return false, nil end
         end
-        
-        if hitChar ~= player.Character and isBot(hitChar) and isBotEnemy(hitChar) then
-            local humanoid = hitChar:FindFirstChildOfClass("Humanoid")
-            if humanoid and humanoid.Health > 0 then
-                return true, hitChar
-            end
+        if hitChar == player.Character then return false, nil end
+        local hitPlayer = game.Players:GetPlayerFromCharacter(hitChar)
+        if hitPlayer and hitPlayer ~= player and isEnemy(hitPlayer) then
+            local hum = hitChar:FindFirstChildOfClass("Humanoid")
+            if hum and hum.Health > 0 then return true, hitPlayer end
+        end
+        if not hitPlayer and isBot(hitChar) and isBotEnemy(hitChar) then
+            local hum = hitChar:FindFirstChildOfClass("Humanoid")
+            if hum and hum.Health > 0 then return true, hitChar end
+        end
+        return false, nil
+    end
+    
+    local found, enemy = checkHit(result)
+    if found then return true, enemy end
+    
+    -- Raios extras em cone pequeno pra melhorar deteccao
+    local offsets = {8, -8}
+    for _, ox in ipairs(offsets) do
+        for _, oy in ipairs(offsets) do
+            local r = cam:ViewportPointToRay(screenCenter.X + ox, screenCenter.Y + oy)
+            local res = workspace:Raycast(r.Origin, r.Direction * 1000, raycastParams)
+            found, enemy = checkHit(res)
+            if found then return true, enemy end
         end
     end
+    
     return false, nil
 end
 
@@ -902,7 +930,12 @@ local lighting = game:GetService("Lighting")
 local originalSettings = {}
 local originalTextures = {}
 
+local ultraEnabled = false
+local ultraObjects = {}
+local originalUltraSettings = {}
+
 perfBtn.MouseButton1Click:Connect(function()
+    if ultraEnabled then return end
     perfEnabled = not perfEnabled
     pcall(function()
         if perfEnabled then
@@ -912,63 +945,192 @@ perfBtn.MouseButton1Click:Connect(function()
             originalSettings.GlobalShadows = lighting.GlobalShadows
             originalSettings.OutdoorAmbient = lighting.OutdoorAmbient
             originalSettings.Ambient = lighting.Ambient
+            originalSettings.FogEnd = lighting.FogEnd
+            originalSettings.FogStart = lighting.FogStart
             
-            lighting.Brightness = 2
+            -- Sombras 100% OFF
             lighting.GlobalShadows = false
-            lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
-            lighting.Ambient = Color3.fromRGB(128, 128, 128)
+            lighting.Brightness = 2
+            lighting.OutdoorAmbient = Color3.fromRGB(200, 200, 200)
+            lighting.Ambient = Color3.fromRGB(200, 200, 200)
+            lighting.FogEnd = 100000
+            lighting.FogStart = 100000
             
+            -- Desliga TODOS efeitos de iluminacao
             for _, obj in pairs(lighting:GetChildren()) do
-                if obj:IsA("BloomEffect") or obj:IsA("BlurEffect") or obj:IsA("ColorCorrectionEffect") or obj:IsA("SunRaysEffect") or obj:IsA("DepthOfFieldEffect") then
-                    obj.Enabled = false
+                if obj:IsA("PostEffect") or obj:IsA("Atmosphere") or obj:IsA("Sky") then
+                    originalTextures[obj] = {Enabled = obj:IsA("Sky") and true or obj.Enabled}
+                    if not obj:IsA("Sky") then obj.Enabled = false end
+                    if obj:IsA("Sky") then obj.Parent = nil; originalTextures[obj].wasSky = true end
                 end
             end
             
+            -- Remove texturas, particulas, decals - maximo batata
             for _, obj in pairs(workspace:GetDescendants()) do
-                if obj:IsA("ParticleEmitter") or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles") then
+                if obj:IsA("ParticleEmitter") or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles") or obj:IsA("Trail") or obj:IsA("Beam") then
                     originalTextures[obj] = {Enabled = obj.Enabled}
                     obj.Enabled = false
-                elseif obj:IsA("BasePart") and not obj.Parent:IsA("Model") or (obj.Parent:IsA("Model") and not game.Players:GetPlayerFromCharacter(obj.Parent)) then
-                    if obj:IsA("MeshPart") then
-                        originalTextures[obj] = {TextureID = obj.TextureID}
+                elseif obj:IsA("MeshPart") then
+                    local charModel = obj:FindFirstAncestorWhichIsA("Model")
+                    if not charModel or not game.Players:GetPlayerFromCharacter(charModel) then
+                        originalTextures[obj] = {TextureID = obj.TextureID, Material = obj.Material}
                         obj.TextureID = ""
-                    elseif obj:IsA("Part") or obj:IsA("WedgePart") or obj:IsA("CornerWedgePart") then
-                        for _, decal in pairs(obj:GetChildren()) do
-                            if decal:IsA("Decal") or decal:IsA("Texture") then
-                                originalTextures[decal] = {Transparency = decal.Transparency}
-                                decal.Transparency = 1
-                            end
+                        obj.Material = Enum.Material.SmoothPlastic
+                    end
+                elseif obj:IsA("BasePart") and not obj:IsA("MeshPart") then
+                    local charModel = obj:FindFirstAncestorWhichIsA("Model")
+                    if not charModel or not game.Players:GetPlayerFromCharacter(charModel) then
+                        originalTextures[obj] = {Material = obj.Material}
+                        obj.Material = Enum.Material.SmoothPlastic
+                    end
+                    for _, decal in pairs(obj:GetChildren()) do
+                        if decal:IsA("Decal") or decal:IsA("Texture") then
+                            originalTextures[decal] = {Transparency = decal.Transparency}
+                            decal.Transparency = 1
                         end
                     end
                 end
             end
             
+            -- Qualidade minima
+            pcall(function() settings().Rendering.QualityLevel = Enum.QualityLevel.Level01 end)
             if setfpscap then setfpscap(999) end
         else
             perfIndicator.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
             
             lighting.Brightness = originalSettings.Brightness or 1
-            lighting.GlobalShadows = originalSettings.GlobalShadows or true
+            lighting.GlobalShadows = originalSettings.GlobalShadows ~= nil and originalSettings.GlobalShadows or true
             lighting.OutdoorAmbient = originalSettings.OutdoorAmbient or Color3.fromRGB(70, 70, 70)
             lighting.Ambient = originalSettings.Ambient or Color3.fromRGB(70, 70, 70)
-            
-            for _, obj in pairs(lighting:GetChildren()) do
-                if obj:IsA("BloomEffect") or obj:IsA("BlurEffect") or obj:IsA("ColorCorrectionEffect") or obj:IsA("SunRaysEffect") or obj:IsA("DepthOfFieldEffect") then
-                    obj.Enabled = true
-                end
-            end
+            lighting.FogEnd = originalSettings.FogEnd or 100000
+            lighting.FogStart = originalSettings.FogStart or 0
             
             for obj, data in pairs(originalTextures) do
-                if obj:IsA("MeshPart") then
-                    obj.TextureID = data.TextureID
-                elseif obj:IsA("Decal") or obj:IsA("Texture") then
-                    obj.Transparency = data.Transparency
-                elseif obj:IsA("ParticleEmitter") or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles") then
-                    obj.Enabled = data.Enabled
-                end
+                pcall(function()
+                    if data.wasSky then
+                        obj.Parent = lighting
+                    elseif obj:IsA("PostEffect") or obj:IsA("Atmosphere") then
+                        obj.Enabled = data.Enabled
+                    elseif obj:IsA("MeshPart") then
+                        obj.TextureID = data.TextureID
+                        if data.Material then obj.Material = data.Material end
+                    elseif obj:IsA("BasePart") then
+                        if data.Material then obj.Material = data.Material end
+                    elseif obj:IsA("Decal") or obj:IsA("Texture") then
+                        obj.Transparency = data.Transparency
+                    elseif data.Enabled ~= nil then
+                        obj.Enabled = data.Enabled
+                    end
+                end)
             end
             originalTextures = {}
             
+            pcall(function() settings().Rendering.QualityLevel = Enum.QualityLevel.Automatic end)
+            if setfpscap then setfpscap(60) end
+        end
+    end)
+end)
+
+ultraBtn.MouseButton1Click:Connect(function()
+    if perfEnabled then return end
+    ultraEnabled = not ultraEnabled
+    pcall(function()
+        if ultraEnabled then
+            ultraIndicator.BackgroundColor3 = Color3.fromRGB(80, 255, 80)
+            
+            originalUltraSettings.Brightness = lighting.Brightness
+            originalUltraSettings.GlobalShadows = lighting.GlobalShadows
+            originalUltraSettings.OutdoorAmbient = lighting.OutdoorAmbient
+            originalUltraSettings.Ambient = lighting.Ambient
+            originalUltraSettings.ClockTime = lighting.ClockTime
+            originalUltraSettings.GeographicLatitude = lighting.GeographicLatitude
+            originalUltraSettings.EnvironmentDiffuseScale = lighting.EnvironmentDiffuseScale
+            originalUltraSettings.EnvironmentSpecularScale = lighting.EnvironmentSpecularScale
+            originalUltraSettings.ExposureCompensation = lighting.ExposureCompensation
+            
+            -- Iluminacao realista
+            lighting.GlobalShadows = true
+            lighting.Brightness = 3
+            lighting.ClockTime = 14.5
+            lighting.GeographicLatitude = 35
+            lighting.OutdoorAmbient = Color3.fromRGB(100, 110, 130)
+            lighting.Ambient = Color3.fromRGB(40, 45, 55)
+            lighting.EnvironmentDiffuseScale = 1
+            lighting.EnvironmentSpecularScale = 1
+            lighting.ExposureCompensation = 0.1
+            
+            -- Qualidade maxima
+            pcall(function() settings().Rendering.QualityLevel = Enum.QualityLevel.Level21 end)
+            
+            -- Bloom realista
+            local bloom = Instance.new("BloomEffect")
+            bloom.Name = "UltraBloom"
+            bloom.Intensity = 0.4
+            bloom.Size = 30
+            bloom.Threshold = 0.9
+            bloom.Parent = lighting
+            table.insert(ultraObjects, bloom)
+            
+            -- Color correction cinematica
+            local cc = Instance.new("ColorCorrectionEffect")
+            cc.Name = "UltraCC"
+            cc.Brightness = 0.02
+            cc.Contrast = 0.15
+            cc.Saturation = 0.25
+            cc.TintColor = Color3.fromRGB(255, 248, 240)
+            cc.Parent = lighting
+            table.insert(ultraObjects, cc)
+            
+            -- Sun rays
+            local sr = Instance.new("SunRaysEffect")
+            sr.Name = "UltraSunRays"
+            sr.Intensity = 0.08
+            sr.Spread = 0.6
+            sr.Parent = lighting
+            table.insert(ultraObjects, sr)
+            
+            -- Atmosfera realista
+            local atm = Instance.new("Atmosphere")
+            atm.Name = "UltraAtmosphere"
+            atm.Density = 0.3
+            atm.Offset = 0.2
+            atm.Color = Color3.fromRGB(199, 210, 230)
+            atm.Decay = Color3.fromRGB(92, 105, 130)
+            atm.Glare = 0.2
+            atm.Haze = 1.5
+            atm.Parent = lighting
+            table.insert(ultraObjects, atm)
+            
+            -- Depth of field leve
+            local dof = Instance.new("DepthOfFieldEffect")
+            dof.Name = "UltraDOF"
+            dof.FarIntensity = 0.05
+            dof.FocusDistance = 50
+            dof.InFocusRadius = 30
+            dof.NearIntensity = 0
+            dof.Parent = lighting
+            table.insert(ultraObjects, dof)
+            
+            if setfpscap then setfpscap(999) end
+        else
+            ultraIndicator.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
+            
+            lighting.Brightness = originalUltraSettings.Brightness or 1
+            lighting.GlobalShadows = originalUltraSettings.GlobalShadows ~= nil and originalUltraSettings.GlobalShadows or true
+            lighting.OutdoorAmbient = originalUltraSettings.OutdoorAmbient or Color3.fromRGB(70, 70, 70)
+            lighting.Ambient = originalUltraSettings.Ambient or Color3.fromRGB(70, 70, 70)
+            lighting.ClockTime = originalUltraSettings.ClockTime or 14
+            lighting.GeographicLatitude = originalUltraSettings.GeographicLatitude or 41.7
+            lighting.EnvironmentDiffuseScale = originalUltraSettings.EnvironmentDiffuseScale or 0
+            lighting.EnvironmentSpecularScale = originalUltraSettings.EnvironmentSpecularScale or 0
+            lighting.ExposureCompensation = originalUltraSettings.ExposureCompensation or 0
+            
+            for _, obj in ipairs(ultraObjects) do
+                pcall(function() obj:Destroy() end)
+            end
+            ultraObjects = {}
+            
+            pcall(function() settings().Rendering.QualityLevel = Enum.QualityLevel.Automatic end)
             if setfpscap then setfpscap(60) end
         end
     end)
