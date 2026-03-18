@@ -36,7 +36,7 @@ local MainFrame = Instance.new("Frame")
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
 MainFrame.Position = UDim2.new(0.02, 0, 0.3, 0)
-MainFrame.Size = UDim2.new(0, 240, 0, 400)
+MainFrame.Size = UDim2.new(0, 240, 0, 420)
 MainFrame.BackgroundTransparency = 0.05
 
 local UICorner = Instance.new("UICorner")
@@ -93,14 +93,18 @@ rejoinCorner.Parent = rejoinBtn
 
 local dragging, dragInput, dragStart, startPos
 
+local dragConnection = nil
+
 TitleBar.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
         dragging = true
         dragStart = input.Position
         startPos = MainFrame.Position
-        input.Changed:Connect(function()
+        if dragConnection then dragConnection:Disconnect() end
+        dragConnection = input.Changed:Connect(function()
             if input.UserInputState == Enum.UserInputState.End then
                 dragging = false
+                if dragConnection then dragConnection:Disconnect(); dragConnection = nil end
             end
         end)
     end
@@ -428,7 +432,7 @@ local function addBotESP(character)
         local nameLabel = Instance.new("TextLabel")
         nameLabel.Size = UDim2.new(1, 0, 1, 0)
         nameLabel.BackgroundTransparency = 1
-        nameLabel.Text = "Bot"
+        nameLabel.Text = "Yago"
         nameLabel.TextColor3 = color
         nameLabel.TextStrokeTransparency = 0.3
         nameLabel.Font = Enum.Font.GothamBold
@@ -486,14 +490,19 @@ local function updateESPColors()
 end
 
 local function refreshESP()
+    local toRemove = {}
     for plr, boxes in pairs(espBoxes) do
         if typeof(plr) == "Instance" and plr:IsA("Player") then
             if not plr.Character or not plr.Character:FindFirstChild("Head") then
-                removeESP(plr)
+                table.insert(toRemove, plr)
             end
         elseif typeof(plr) ~= "Instance" or not plr.Parent then
-            espBoxes[plr] = nil
+            table.insert(toRemove, plr)
         end
+    end
+    for _, plr in ipairs(toRemove) do
+        removeESP(plr)
+        botCharacters[plr] = nil
     end
     
     for _, plr in pairs(game.Players:GetPlayers()) do
@@ -516,7 +525,12 @@ local function refreshESP()
     end
 end
 
+local refreshTimer = 0
+local colorTimer = 0
+
 local function enableESP()
+    refreshTimer = 0
+    colorTimer = 0
     for _, plr in pairs(game.Players:GetPlayers()) do addESP(plr) end
     espConnections.playerAdded = game.Players.PlayerAdded:Connect(function(plr)
         if espEnabled then 
@@ -527,14 +541,20 @@ local function enableESP()
     espConnections.playerRemoving = game.Players.PlayerRemoving:Connect(function(plr)
         removeESP(plr)
     end)
-    espConnections.refresh = RunService.Heartbeat:Connect(function()
-        if espEnabled and tick() % 1.5 < 0.016 then
-            refreshESP()
+    espConnections.refresh = RunService.Heartbeat:Connect(function(dt)
+        if not espEnabled then return end
+        refreshTimer = refreshTimer + dt
+        if refreshTimer >= 1.5 then
+            refreshTimer = 0
+            pcall(refreshESP)
         end
     end)
-    espConnections.colorUpdate = RunService.Heartbeat:Connect(function()
-        if espEnabled and tick() % 0.5 < 0.016 then
-            updateESPColors()
+    espConnections.colorUpdate = RunService.Heartbeat:Connect(function(dt)
+        if not espEnabled then return end
+        colorTimer = colorTimer + dt
+        if colorTimer >= 0.5 then
+            colorTimer = 0
+            pcall(updateESPColors)
         end
     end)
 end
@@ -631,30 +651,41 @@ espBtn.MouseButton1Click:Connect(function()
     end
 end)
 
+local sharedRayParams = RaycastParams.new()
+sharedRayParams.FilterType = Enum.RaycastFilterType.Exclude
+sharedRayParams.IgnoreWater = true
+
+local function updateRayParams()
+    if player.Character then
+        sharedRayParams.FilterDescendantsInstances = {player.Character}
+    end
+end
+
+local function isVisible(fromPos, head, character)
+    local result = workspace:Raycast(fromPos, (head.Position - fromPos).Unit * 1000, sharedRayParams)
+    if not result then return false end
+    return result.Instance:IsDescendantOf(character)
+end
+
 local function getClosestEnemy()
     local mouse = player:GetMouse()
     local mousePos = Vector2.new(mouse.X, mouse.Y)
+    local cam = workspace.CurrentCamera
     local closest = nil
     local shortestDistance = aimbotFOV
+    updateRayParams()
     
     for _, plr in pairs(game.Players:GetPlayers()) do
         if plr ~= player and isEnemy(plr) and plr.Character and plr.Character ~= player.Character then
             local humanoid = plr.Character:FindFirstChildOfClass("Humanoid")
             local head = plr.Character:FindFirstChild("Head")
-            
             if humanoid and head and humanoid.Health > 0 then
-                local screenPos, onScreen = workspace.CurrentCamera:WorldToViewportPoint(head.Position)
+                local screenPos, onScreen = cam:WorldToViewportPoint(head.Position)
                 if onScreen then
                     local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
-                    if distance < shortestDistance then
-                        local raycastParams = RaycastParams.new()
-                        raycastParams.FilterDescendantsInstances = {player.Character}
-                        raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-                        local result = workspace:Raycast(workspace.CurrentCamera.CFrame.Position, (head.Position - workspace.CurrentCamera.CFrame.Position).Unit * 1000, raycastParams)
-                        if result and result.Instance:IsDescendantOf(plr.Character) then
-                            shortestDistance = distance
-                            closest = head
-                        end
+                    if distance < shortestDistance and isVisible(cam.CFrame.Position, head, plr.Character) then
+                        shortestDistance = distance
+                        closest = head
                     end
                 end
             end
@@ -665,20 +696,13 @@ local function getClosestEnemy()
         if char ~= player.Character and isBot(char) and isBotEnemy(char) then
             local humanoid = char:FindFirstChildOfClass("Humanoid")
             local head = char:FindFirstChild("Head")
-            
             if humanoid and head and humanoid.Health > 0 then
-                local screenPos, onScreen = workspace.CurrentCamera:WorldToViewportPoint(head.Position)
+                local screenPos, onScreen = cam:WorldToViewportPoint(head.Position)
                 if onScreen then
                     local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
-                    if distance < shortestDistance then
-                        local raycastParams = RaycastParams.new()
-                        raycastParams.FilterDescendantsInstances = {player.Character}
-                        raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-                        local result = workspace:Raycast(workspace.CurrentCamera.CFrame.Position, (head.Position - workspace.CurrentCamera.CFrame.Position).Unit * 1000, raycastParams)
-                        if result and result.Instance:IsDescendantOf(char) then
-                            shortestDistance = distance
-                            closest = head
-                        end
+                    if distance < shortestDistance and isVisible(cam.CFrame.Position, head, char) then
+                        shortestDistance = distance
+                        closest = head
                     end
                 end
             end
@@ -692,25 +716,19 @@ local function getClosestEnemyMax()
     local cam = workspace.CurrentCamera
     local closest = nil
     local shortestDistance = math.huge
+    updateRayParams()
     
     for _, plr in pairs(game.Players:GetPlayers()) do
         if plr ~= player and isEnemy(plr) and plr.Character and plr.Character ~= player.Character then
             local humanoid = plr.Character:FindFirstChildOfClass("Humanoid")
             local head = plr.Character:FindFirstChild("Head")
-            
             if humanoid and head and humanoid.Health > 0 then
-                local screenPos, onScreen = workspace.CurrentCamera:WorldToViewportPoint(head.Position)
+                local screenPos, onScreen = cam:WorldToViewportPoint(head.Position)
                 if onScreen then
-                    local raycastParams = RaycastParams.new()
-                    raycastParams.FilterDescendantsInstances = {player.Character}
-                    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-                    local result = workspace:Raycast(cam.CFrame.Position, (head.Position - cam.CFrame.Position).Unit * 1000, raycastParams)
-                    if result and result.Instance:IsDescendantOf(plr.Character) then
-                        local distance = (cam.CFrame.Position - head.Position).Magnitude
-                        if distance < shortestDistance then
-                            shortestDistance = distance
-                            closest = head
-                        end
+                    local distance = (cam.CFrame.Position - head.Position).Magnitude
+                    if distance < shortestDistance and isVisible(cam.CFrame.Position, head, plr.Character) then
+                        shortestDistance = distance
+                        closest = head
                     end
                 end
             end
@@ -721,20 +739,13 @@ local function getClosestEnemyMax()
         if char ~= player.Character and isBot(char) and isBotEnemy(char) then
             local humanoid = char:FindFirstChildOfClass("Humanoid")
             local head = char:FindFirstChild("Head")
-            
             if humanoid and head and humanoid.Health > 0 then
-                local screenPos, onScreen = workspace.CurrentCamera:WorldToViewportPoint(head.Position)
+                local screenPos, onScreen = cam:WorldToViewportPoint(head.Position)
                 if onScreen then
-                    local raycastParams = RaycastParams.new()
-                    raycastParams.FilterDescendantsInstances = {player.Character}
-                    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-                    local result = workspace:Raycast(cam.CFrame.Position, (head.Position - cam.CFrame.Position).Unit * 1000, raycastParams)
-                    if result and result.Instance:IsDescendantOf(char) then
-                        local distance = (cam.CFrame.Position - head.Position).Magnitude
-                        if distance < shortestDistance then
-                            shortestDistance = distance
-                            closest = head
-                        end
+                    local distance = (cam.CFrame.Position - head.Position).Magnitude
+                    if distance < shortestDistance and isVisible(cam.CFrame.Position, head, char) then
+                        shortestDistance = distance
+                        closest = head
                     end
                 end
             end
@@ -746,16 +757,13 @@ end
 
 local function isEnemyInCrosshair()
     local cam = workspace.CurrentCamera
+    if not player.Character then return false, nil end
     local screenCenter = Vector2.new(cam.ViewportSize.X / 2, cam.ViewportSize.Y / 2)
-    
-    local raycastParams = RaycastParams.new()
-    raycastParams.FilterDescendantsInstances = {player.Character}
-    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-    raycastParams.IgnoreWater = true
+    updateRayParams()
     
     -- Raio central
     local ray = cam:ViewportPointToRay(screenCenter.X, screenCenter.Y)
-    local result = workspace:Raycast(ray.Origin, ray.Direction * 1000, raycastParams)
+    local result = workspace:Raycast(ray.Origin, ray.Direction * 1000, sharedRayParams)
     
     local function checkHit(res)
         if not res or not res.Instance then return false, nil end
@@ -783,11 +791,11 @@ local function isEnemyInCrosshair()
     if found then return true, enemy end
     
     -- Raios extras em cone pequeno pra melhorar deteccao
-    local offsets = {8, -8}
+    local offsets = {10, -10, 5, -5}
     for _, ox in ipairs(offsets) do
         for _, oy in ipairs(offsets) do
             local r = cam:ViewportPointToRay(screenCenter.X + ox, screenCenter.Y + oy)
-            local res = workspace:Raycast(r.Origin, r.Direction * 1000, raycastParams)
+            local res = workspace:Raycast(r.Origin, r.Direction * 1000, sharedRayParams)
             found, enemy = checkHit(res)
             if found then return true, enemy end
         end
@@ -851,7 +859,7 @@ RunService.Heartbeat:Connect(function()
                 lastFireTime = currentTime
                 
                 task.spawn(function()
-                    pcall(function()
+                    local ok = pcall(function()
                         if mouse1press then
                             mouse1press()
                             task.wait(0.02)
@@ -860,8 +868,8 @@ RunService.Heartbeat:Connect(function()
                             end
                         end
                         task.wait(0.01)
-                        isFiring = false
                     end)
+                    isFiring = false
                 end)
             end
         end
@@ -1290,6 +1298,17 @@ if not ScreenGui.Parent then
     ScreenGui.Parent = player:WaitForChild("PlayerGui")
 end
 
+local creditLabel = Instance.new("TextLabel")
+creditLabel.Parent = MainFrame
+creditLabel.BackgroundTransparency = 1
+creditLabel.Position = UDim2.new(0, 0, 1, -18)
+creditLabel.Size = UDim2.new(1, 0, 0, 18)
+creditLabel.Font = Enum.Font.GothamSemibold
+creditLabel.Text = "By @leo_zppln"
+creditLabel.TextColor3 = Color3.fromRGB(120, 90, 200)
+creditLabel.TextSize = 10
+creditLabel.TextTransparency = 0.3
+
 pcall(function()
-    print("[Universal] Carregado! Z=Menu J=ESP X=Aimbot C=AutoFire V=Max N=Noclip | Aimbot: Segure BOTAO DIREITO")
+    print("[Universal] Carregado! Z=Menu J=ESP X=Aimbot C=AutoFire V=Max N=Noclip | By @leo_zppln")
 end)
